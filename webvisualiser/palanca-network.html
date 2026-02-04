@@ -177,6 +177,7 @@
         <button class="primary" id="fetch-btn">Fetch Live Data</button>
         <button class="secondary" id="demo-btn">Load Demo Data</button>
         <button class="settings-btn" id="settings-btn">Settings</button>
+        <button id="save-btn">Save JSON</button>
         <div class="separator"></div>
         <button id="cose-layout">Force Layout</button>
         <button id="circle-layout">Circle Layout</button>
@@ -636,6 +637,23 @@
         renderGraph(DEMO_DATA);
     }
 
+    function saveJSON() {
+        if (!cy) { setStatus('No graph data to save.'); return; }
+        var data = {
+            nodes: cy.nodes().map(function(n) { return n.data(); }),
+            edges: cy.edges().map(function(e) { return e.data(); }),
+            exportedAt: new Date().toISOString()
+        };
+        var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'palanca-network-' + new Date().toISOString().slice(0, 10) + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        setStatus('Saved JSON (' + data.nodes.length + ' nodes, ' + data.edges.length + ' edges)');
+    }
+
     // ── Layout helpers ───────────────────────────────────────────────
     function applyLayout(name) {
         if (!cy) return;
@@ -656,6 +674,7 @@
 
         $('fetch-btn').addEventListener('click', fetchAndRender);
         $('demo-btn').addEventListener('click', loadDemoData);
+        $('save-btn').addEventListener('click', saveJSON);
 
         $('settings-btn').addEventListener('click', function() {
             settingsPanel.classList.toggle('visible');
