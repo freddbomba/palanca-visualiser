@@ -190,6 +190,7 @@
     <div class="node-info" id="node-info">
         <h4 id="node-info-label">-</h4>
         <div class="field"><span class="key">Role: </span><span class="value" id="node-info-role">-</span></div>
+        <div class="field"><span class="key">Balance: </span><span class="value" id="node-info-balance">-</span></div>
         <div class="field"><span class="key">Connections: </span><span class="value" id="node-info-connections">-</span></div>
         <div class="field"><span class="key">Address: </span></div>
         <div class="address" id="node-info-address">-</div>
@@ -200,7 +201,8 @@
         <p>- Click a node to highlight its neighborhood</p>
         <p>- Double-click a node to rename it (saved in browser)</p>
         <p>- Drag nodes to rearrange, scroll to zoom, drag background to pan</p>
-        <p>- Red nodes: top senders (Issuers) | Blue nodes: Participants</p>
+        <p>- Orange nodes: received PAL in the last 7 days | Blue nodes: no recent activity</p>
+        <p>- Node size: proportional to PAL balance held</p>
         <p>- Thicker / orange edges = larger token transfers</p>
     </div>
 
@@ -411,6 +413,22 @@
             addressSet.add(t.recipient);
         }
 
+        // Build balance map from holders (uses decimals discovered above)
+        const balanceMap = {};
+        for (const h of holders) {
+            if (h.owner && h.owner.address) {
+                balanceMap[h.owner.address] = Number(h.balance || '0') / Math.pow(10, decimals);
+            }
+        }
+
+        // Track last incoming transfer timestamp per address
+        const lastReceived = {};
+        for (const t of transfers) {
+            if (t.timestamp && (!lastReceived[t.recipient] || t.timestamp > lastReceived[t.recipient])) {
+                lastReceived[t.recipient] = t.timestamp;
+            }
+        }
+
         // Count connections and outgoing transfers
         const connectionCount = {};
         const outgoingCount = {};
@@ -439,7 +457,9 @@
                     id: addr,
                     label: getLabel(addr),
                     role: issuerSet.has(addr) ? 'Issuer' : 'Participant',
-                    connections: connectionCount[addr] || 0
+                    connections: connectionCount[addr] || 0,
+                    balance: balanceMap[addr] || 0,
+                    lastReceived: lastReceived[addr] || 0
                 }
             });
         }
@@ -469,11 +489,23 @@
                     selector: 'node',
                     style: {
                         'background-color': function(ele) {
-                            return ele.data('role') === 'Issuer' ? '#ff6b6b' : '#4dabf7';
+                            var lr = ele.data('lastReceived');
+                            if (lr && (Date.now() / 1000 - lr) < 7 * 24 * 3600) {
+                                return '#ff8c42';
+                            }
+                            return '#4dabf7';
                         },
                         'label': 'data(label)',
-                        'width': function(ele) { return 30 + (ele.data('connections') * 5); },
-                        'height': function(ele) { return 30 + (ele.data('connections') * 5); },
+                        'width': function(ele) {
+                            var bal = ele.data('balance');
+                            if (bal > 0) return 25 + 12 * Math.log10(bal);
+                            return 30 + (ele.data('connections') * 5);
+                        },
+                        'height': function(ele) {
+                            var bal = ele.data('balance');
+                            if (bal > 0) return 25 + 12 * Math.log10(bal);
+                            return 30 + (ele.data('connections') * 5);
+                        },
                         'font-size': '12px',
                         'color': '#fff',
                         'text-outline-color': '#000',
@@ -543,6 +575,7 @@
 
             $('node-info-label').textContent = node.data('label');
             $('node-info-role').textContent = node.data('role');
+            $('node-info-balance').textContent = node.data('balance') ? node.data('balance').toLocaleString() + ' PAL' : '-';
             $('node-info-connections').textContent = node.data('connections');
             $('node-info-address').textContent = node.data('id');
             nodeInfoPanel.classList.add('visible');
@@ -664,12 +697,18 @@
     document.addEventListener('DOMContentLoaded', function() {
         jettonInput.value = DEFAULT_JETTON;
 
-        // Load cached data from last fetch
+        // Load cached data from last fetch (discard if missing new fields)
         var cached = loadGraphCache();
         if (cached && cached.data) {
-            renderGraph(cached.data);
-            var when = new Date(cached.fetchedAt).toLocaleString();
-            setStatus('Cached data from ' + when + ': ' + cy.nodes().length + ' wallets, ' + cy.edges().length + ' transfers');
+            var firstNode = (cached.data.nodes || [])[0];
+            if (firstNode && firstNode.data && firstNode.data.lastReceived !== undefined) {
+                renderGraph(cached.data);
+                var when = new Date(cached.fetchedAt).toLocaleString();
+                setStatus('Cached data from ' + when + ': ' + cy.nodes().length + ' wallets, ' + cy.edges().length + ' transfers');
+            } else {
+                localStorage.removeItem(CACHE_KEY);
+                setStatus('Stale cache cleared. Click "Fetch Live Data" to reload.');
+            }
         }
 
         $('fetch-btn').addEventListener('click', fetchAndRender);
