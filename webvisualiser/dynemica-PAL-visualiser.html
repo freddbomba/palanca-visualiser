@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Palanca Token Network - Live</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        #cy {
+            width: 100%;
+            height: 70vh;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        button {
+            padding: 8px 15px;
+            background: #4a6fa5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1;
+            min-width: 120px;
+        }
+        button:hover {
+            background: #3a5a8a;
+        }
+        .info {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border-left: 4px solid #4a6fa5;
+        }
+        .status {
+            background: #fff3cd;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 4px solid #ffc107;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .loading {
+            display: none;
+            color: #4a6fa5;
+            font-weight: bold;
+        }
+        .last-updated {
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>Palanca Token Network - Live</h1>
+    <div class="status">
+        <div>
+            <span id="status-text">Loading PAL token data...</span>
+            <span class="loading" id="loading-indicator"> •••</span>
+        </div>
+        <div class="last-updated" id="last-updated"></div>
+    </div>
+    
+    <div class="controls">
+        <button id="refresh-data">🔄 Refresh Data</button>
+        <button id="cose-layout">Force Layout</button>
+        <button id="circle-layout">Circle Layout</button>
+        <button id="grid-layout">Grid Layout</button>
+        <button id="reset-view">Reset View</button>
+    </div>
+    
+    <div id="cy"></div>
+    
+    <div class="info">
+        <h3>How to use:</h3>
+        <p>• <strong>Node size</strong>: Proportional to tokens held</p>
+        <p>• <strong>Edge color</strong>: Warmer = more recent transaction</p>
+        <p>• <strong>Red nodes</strong>: Major token holders/Issuers</p>
+        <p>• <strong>Blue nodes</strong>: Regular participants</p>
+        <p>• Click any node to see details</p>
+        <p>• Drag nodes to rearrange, scroll to zoom</p>
+    </div>
+
+    <script>
+    // TON API configuration
+    const CONFIG = {
+        // Replace with actual PAL token contract address
+        PAL_TOKEN_ADDRESS: 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACM', // Example
+        // TON API endpoints (choose one)
+        API_ENDPOINTS: [
+            'https://tonapi.io/v2/',
+            'https://toncenter.com/api/v2/'
+        ],
+        // Fallback data in case API fails
+        FALLBACK_DATA: {
+            nodes: [
+                { data: { id: 'distributor', label: 'Main Distributor', role: 'Issuer', tokens: 10000, lastTx: Date.now() } },
+                { data: { id: 'walletA', label: 'Wallet A', role: 'Participant', tokens: 800, lastTx: Date.now() - 86400000 } },
+                // ... rest of fallback data
+            ],
+            edges: [
+                { data: { id: 'edge1', source: 'distributor', target: 'walletA', amount: 300, timestamp: Date.now() - 3600000 } },
+                // ... rest of fallback edges
+            ]
+        }
+    };
+
+    // Color utilities
+    const ColorUtils = {
+        // Get color based on transaction age (warmer = more recent)
+        getEdgeColorByAge: function(timestamp) {
+            const now = Date.now();
+            const age = now - timestamp;
+            const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+            
+            // Normalize age (0 = recent, 1 = old)
+            const normalizedAge = Math.min(1, age / maxAge);
+            
+            // Generate gradient from warm orange to cool gray
+            if (normalizedAge < 0.33) {
+                return '#ff6b35'; // Hot orange (recent)
+            } else if (normalizedAge < 0.66) {
+                return '#ffa94d'; // Warm orange
+            } else {
+                return '#aaa'; // Cool gray (old)
+            }
+        },
+        
+        // Get node color based on role and token amount
+        getNodeColor: function(role, tokens) {
+            if (role === 'Issuer') {
+                return '#ff6b6b'; // Red for issuers
+            } else if (tokens > 1000) {
+                return '#4dabf7'; // Bright blue for large holders
+            } else {
+                return '#69db7c'; // Green for regular holders
+            }
+        }
+    };
+
+    class PalancaNetwork {
+        constructor() {
+            this.cy = null;
+            this.networkData = { nodes: [], edges: [] };
+            this.init();
+        }
+
+        async init() {
+            this.showLoading(true);
+            await this.fetchNetworkData();
+            this.initCytoscape();
+            this.setupEventListeners();
+            this.showLoading(false);
+        }
+
+        async fetchNetworkData() {
+            try {
+                console.log('Fetching PAL token network data...');
+                
+                // Try to fetch from TON API
+                const apiData = await this.fetchFromAPI();
+                if (apiData) {
+                    this.networkData = this.processAPIData(apiData);
+                } else {
+                    // Use fallback data if API fails
+                    console.warn('API failed, using fallback data');
+                    this.networkData = this.processFallbackData();
+                }
+                
+                this.updateStatus(`Loaded ${this.networkData.nodes.length} wallets and ${this.networkData.edges.length} transactions`);
+                this.updateLastUpdated();
+                
+            } catch (error) {
+                console.error('Error fetching network data:', error);
+                this.networkData = this.processFallbackData();
+                this.updateStatus('Error loading live data. Using sample data.');
+            }
+        }
+
+        async fetchFromAPI() {
+            // This is a placeholder for actual TON API integration
+            // You'll need to implement this based on your specific token
+            
+            // Example structure (replace with actual API calls):
+            // 1. Get token holders from token contract
+            // 2. Get transaction history between wallets
+            // 3. Process into nodes and edges
+            
+            // Simulating API delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Return null to simulate API failure (remove in production)
+            // return this.mockAPIData();
+            return null;
+        }
+
+        mockAPIData() {
+            // Mock data simulating API response
+            const holders = [
+                { address: 'distributor', balance: '1000000000000', last_tx: Date.now() },
+                { address: 'walletA', balance: '80000000000', last_tx: Date.now() - 86400000 },
+                // ... more holders
+            ];
+            
+            const transactions = [
+                { from: 'distributor', to: 'walletA', value: '3000000000', timestamp: Date.now() - 3600000 },
+                // ... more transactions
+            ];
+            
+            return { holders, transactions };
+        }
+
+        processAPIData(apiData) {
+            // Convert API data to Cytoscape format
+            const nodes = [];
+            const edges = [];
+            
+            // Process holders into nodes
+            apiData.holders.forEach(holder => {
+                const tokens = parseInt(holder.balance) / 1000000000; // Adjust for decimals
+                nodes.push({
+                    data: {
+                        id: holder.address,
+                        label: this.formatAddress(holder.address),
+                        role: holder.address === 'distributor' ? 'Issuer' : 'Participant',
+                        tokens: tokens,
+                        lastTx: holder.last_tx,
+                        connections: 0 // Will be calculated
+                    }
+                });
+            });
+            
+            // Process transactions into edges
+            apiData.transactions.forEach((tx, index) => {
+                edges.push({
+                    data: {
+                        id: `edge${index + 1}`,
+                        source: tx.from,
+                        target: tx.to,
+                        amount: parseInt(tx.value) / 1000000000,
+                        timestamp: tx.timestamp
+                    }
+                });
+            });
+            
+            // Calculate connections for each node
+            this.calculateConnections(nodes, edges);
+            
+            return { nodes, edges };
+        }
+
+        processFallbackData() {
+            // Process the static fallback data
+            const nodes = CONFIG.FALLBACK_DATA.nodes.map(node => ({
+                data: {
+                    ...node.data,
+                    connections: this.calculateNodeConnections(node.data.id, CONFIG.FALLBACK_DATA.edges)
+                }
+            }));
+            
+            const edges = CONFIG.FALLBACK_DATA.edges;
+            
+            return { nodes, edges };
+        }
+
+        calculateNodeConnections(nodeId, edges) {
+            return edges.filter(edge => 
+                edge.data.source === nodeId || edge.data.target === nodeId
+            ).length;
+        }
+
+        calculateConnections(nodes, edges) {
+            nodes.forEach(node => {
+                node.data.connections = this.calculateNodeConnections(node.data.id, edges);
+            });
+        }
+
+        formatAddress(address) {
+            // Format long addresses for display
+            if (address.length > 10) {
+                return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+            }
+            return address;
+        }
+
+        initCytoscape() {
+            this.cy = cytoscape({
+                container: document.getElementById('cy'),
+                elements: this.networkData,
+                
+                style: [
+                    {
+                        selector: 'node',
+                        style: {
+                            'background-color': function(ele) {
+                                return ColorUtils.getNodeColor(
+                                    ele.data('role'), 
+                                    ele.data('tokens')
+                                );
+                            },
+                            'label': function(ele) {
+                                const tokens = ele.data('tokens');
+                                return `${ele.data('label')}\n${tokens.toLocaleString()} PAL`;
+                            },
+                            'width': function(ele) {
+                                const tokens = ele.data('tokens') || 0;
+                                // Scale size based on token amount (logarithmic for better visualization)
+                                return 20 + Math.log10(tokens + 1) * 15;
+                            },
+                            'height': function(ele) {
+                                const tokens = ele.data('tokens') || 0;
+                                return 20 + Math.log10(tokens + 1) * 15;
+                            },
+                            'font-size': '12px',
+                            'color': '#fff',
+                            'text-outline-color': '#000',
+                            'text-outline-width': '2px',
+                            'text-wrap': 'wrap',
+                            'text-max-width': '80px',
+                            'text-halign': 'center',
+                            'text-valign': 'center'
+                        }
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'width': function(ele) {
+                                const amount = ele.data('amount') || 0;
+                                return Math.max(1, Math.min(8, Math.log10(amount + 1) * 2));
+                            },
+                            'line-color': function(ele) {
+                                const timestamp = ele.data('timestamp') || Date.now();
+                                return ColorUtils.getEdgeColorByAge(timestamp);
+                            },
+                            'target-arrow-color': function(ele) {
+                                const timestamp = ele.data('timestamp') || Date.now();
+                                return ColorUtils.getEdgeColorByAge(timestamp);
+                            },
+                            'target-arrow-shape': 'triangle',
+                            'curve-style': 'bezier',
+                            'arrow-scale': 1.5
+                        }
+                    }
+                ],
+                
+                layout: {
+                    name: 'cose',
+                    padding: 50,
+                    animate: true,
+                    animationDuration: 1000,
+                    idealEdgeLength: 100,
+                    nodeOverlap: 20
+                }
+            });
+
+            // Add node click handler
+            this.cy.on('tap', 'node', (evt) => {
+                const node = evt.target;
+                const data = node.data();
+                this.updateStatus(`Selected: ${data.label} | Tokens: ${data.tokens?.toLocaleString() || 'N/A'} PAL | Connections: ${data.connections}`);
+            });
+        }
+
+        setupEventListeners() {
+            document.getElementById('refresh-data').addEventListener('click', async () => {
+                this.showLoading(true);
+                await this.fetchNetworkData();
+                this.updateVisualization();
+                this.showLoading(false);
+            });
+            
+            document.getElementById('cose-layout').addEventListener('click', () => {
+                this.cy.layout({ name: 'cose', animate: true, animationDuration: 1000 }).run();
+            });
+            
+            document.getElementById('circle-layout').addEventListener('click', () => {
+                this.cy.layout({ name: 'circle', animate: true, animationDuration: 1000 }).run();
+            });
+            
+            document.getElementById('grid-layout').addEventListener('click', () => {
+                this.cy.layout({ name: 'grid', animate: true, animationDuration: 1000 }).run();
+            });
+            
+            document.getElementById('reset-view').addEventListener('click', () => {
+                this.cy.fit();
+            });
+        }
+
+        updateVisualization() {
+            if (!this.cy) return;
+            
+            // Remove existing elements
+            this.cy.elements().remove();
+            
+            // Add new elements
+            this.cy.add(this.networkData);
+            
+            // Reapply layout
+            this.cy.layout({ name: 'cose', animate: true, animationDuration: 1000 }).run();
+        }
+
+        showLoading(show) {
+            const loading = document.getElementById('loading-indicator');
+            loading.style.display = show ? 'inline' : 'none';
+        }
+
+        updateStatus(text) {
+            document.getElementById('status-text').textContent = text;
+        }
+
+        updateLastUpdated() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            document.getElementById('last-updated').textContent = `Last updated: ${timeString}`;
+        }
+    }
+
+    // Initialize the network when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        window.palancaNetwork = new PalancaNetwork();
+    });
+    </script>
+</body>
+</html>
