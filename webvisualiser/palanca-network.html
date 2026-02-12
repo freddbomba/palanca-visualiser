@@ -4,156 +4,7 @@
     <meta charset="UTF-8">
     <title>Palanca Token Network Explorer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
-    <style>
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            padding: 20px;
-            font-family: Arial, sans-serif;
-            background: #1a1a2e;
-            color: #e0e0e0;
-        }
-        h1 { color: #fff; margin: 0 0 4px 0; }
-        .subtitle { color: #888; margin: 0 0 12px 0; font-size: 14px; }
-
-        #cy {
-            width: 100%;
-            height: 65vh;
-            border: 2px solid #333;
-            border-radius: 8px;
-            background: #0f0f23;
-        }
-
-        .controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: center;
-            margin: 12px 0;
-            padding: 12px;
-            background: #16213e;
-            border-radius: 8px;
-        }
-        .controls .separator {
-            width: 1px;
-            height: 28px;
-            background: #333;
-            margin: 0 4px;
-        }
-
-        button {
-            padding: 8px 14px;
-            background: #4a6fa5;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-        }
-        button:hover { background: #5a8fc5; }
-        button:disabled { background: #333; cursor: not-allowed; color: #666; }
-        button.primary { background: #2ecc71; }
-        button.primary:hover { background: #27ae60; }
-        button.secondary { background: #e67e22; }
-        button.secondary:hover { background: #d35400; }
-        button.settings-btn { background: #555; }
-        button.settings-btn:hover { background: #666; }
-
-        .status-bar {
-            padding: 10px 14px;
-            background: #16213e;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .status-bar .status-text { flex: 1; }
-        .progress-container {
-            width: 200px;
-            height: 6px;
-            background: #333;
-            border-radius: 3px;
-            overflow: hidden;
-            display: none;
-        }
-        .progress-bar {
-            height: 100%;
-            background: #2ecc71;
-            border-radius: 3px;
-            transition: width 0.3s;
-            width: 0%;
-        }
-
-        .settings-panel {
-            display: none;
-            padding: 15px;
-            background: #16213e;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-        .settings-panel.visible { display: block; }
-        .settings-panel label {
-            display: block;
-            margin: 8px 0 4px;
-            font-size: 13px;
-            color: #aaa;
-        }
-        .settings-panel input {
-            width: 100%;
-            padding: 8px;
-            background: #0f0f23;
-            border: 1px solid #333;
-            border-radius: 4px;
-            color: #e0e0e0;
-            font-family: monospace;
-            font-size: 13px;
-        }
-        .settings-panel input:focus {
-            outline: none;
-            border-color: #4a6fa5;
-        }
-
-        .info {
-            background: #16213e;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 12px;
-            border-left: 4px solid #4a6fa5;
-            font-size: 13px;
-        }
-        .info h3 { margin: 0 0 8px 0; color: #fff; }
-        .info p { margin: 4px 0; color: #aaa; }
-
-        .node-info {
-            display: none;
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #16213e;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 15px;
-            min-width: 250px;
-            max-width: 350px;
-            font-size: 13px;
-            z-index: 100;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-        }
-        .node-info.visible { display: block; }
-        .node-info h4 { margin: 0 0 8px 0; color: #fff; }
-        .node-info .field { margin: 4px 0; }
-        .node-info .field .key { color: #888; }
-        .node-info .field .value { color: #e0e0e0; }
-        .node-info .address {
-            font-family: monospace;
-            font-size: 11px;
-            word-break: break-all;
-            color: #4dabf7;
-            margin-top: 4px;
-        }
-    </style>
+    <link rel="stylesheet" href="palanca-network.css">
 </head>
 <body>
     <h1>Palanca Token Network Explorer</h1>
@@ -201,7 +52,7 @@
         <p>- Click a node to highlight its neighborhood</p>
         <p>- Double-click a node to rename it (saved in browser)</p>
         <p>- Drag nodes to rearrange, scroll to zoom, drag background to pan</p>
-        <p>- Orange nodes: received PAL in the last 7 days | Blue nodes: no recent activity</p>
+        <p>- Gold nodes: received PAL in the last 7 days | Blue nodes: no recent activity</p>
         <p>- Node size: proportional to PAL balance held</p>
         <p>- Thicker / orange edges = larger token transfers</p>
     </div>
@@ -491,9 +342,9 @@
                         'background-color': function(ele) {
                             var lr = ele.data('lastReceived');
                             if (lr && (Date.now() / 1000 - lr) < 7 * 24 * 3600) {
-                                return '#ff8c42';
+                                return '#ffb700';
                             }
-                            return '#4dabf7';
+                            return '#3085EE';
                         },
                         'label': 'data(label)',
                         'width': function(ele) {
@@ -507,8 +358,8 @@
                             return 30 + (ele.data('connections') * 5);
                         },
                         'font-size': '12px',
-                        'color': '#fff',
-                        'text-outline-color': '#000',
+                        'color': '#242931',
+                        'text-outline-color': '#fff',
                         'text-outline-width': '2px',
                         'text-valign': 'bottom',
                         'text-margin-y': 5
@@ -521,10 +372,10 @@
                             return Math.max(1, Math.min(5, ele.data('amount') / 100));
                         },
                         'line-color': function(ele) {
-                            return ele.data('amount') >= 300 ? '#ffa94d' : '#555';
+                            return ele.data('amount') >= 300 ? '#ffb700' : '#acb3c2';
                         },
                         'target-arrow-color': function(ele) {
-                            return ele.data('amount') >= 300 ? '#ffa94d' : '#555';
+                            return ele.data('amount') >= 300 ? '#ffb700' : '#acb3c2';
                         },
                         'target-arrow-shape': 'triangle',
                         'curve-style': 'bezier',
@@ -535,8 +386,8 @@
                             return amt + (date ? '\n' + date : '');
                         },
                         'font-size': '9px',
-                        'color': '#ccc',
-                        'text-outline-color': '#000',
+                        'color': '#667189',
+                        'text-outline-color': '#fff',
                         'text-outline-width': '1px',
                         'text-rotation': 'autorotate',
                         'text-wrap': 'wrap',
@@ -545,7 +396,7 @@
                 },
                 {
                     selector: 'node.highlighted',
-                    style: { 'border-width': 3, 'border-color': '#fff' }
+                    style: { 'border-width': 3, 'border-color': '#242931' }
                 },
                 {
                     selector: 'node.dimmed',

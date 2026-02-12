@@ -1,0 +1,157 @@
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    padding: 2rem;
+    font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    background: #f8f9fa;
+    color: #454d5d;
+    font-size: 16px;
+}
+h1 { color: #242931; margin: 0 0 4px 0; font-size: 3rem; font-weight: 700; }
+.subtitle { color: rgba(36, 41, 49, 0.8); margin: 0 0 12px 0; font-size: 14px; font-weight: 300; }
+
+#cy {
+    width: 100%;
+    height: 65vh;
+    border: 1px solid rgba(172, 179, 194, 0.2);
+    border-radius: 2px;
+    background: #fff;
+    box-shadow: 0 10px 45px -9px rgba(0, 0, 0, 0.1);
+}
+
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 12px 0;
+    padding: 12px;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 10px 45px -9px rgba(0, 0, 0, 0.1);
+}
+.controls .separator {
+    width: 1px;
+    height: 28px;
+    background: rgba(172, 179, 194, 0.2);
+    margin: 0 4px;
+}
+
+button {
+    padding: 8px 14px;
+    background: #3085EE;
+    color: #fff;
+    border: 1px solid #227ded;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.5s ease;
+}
+button:hover { background: #1877ec; border-color: #1370e3; }
+button:disabled { background: #e7e9ed; cursor: not-allowed; color: #acb3c2; border-color: #e7e9ed; }
+button.primary { background: #32b643; border-color: #2faa3f; }
+button.primary:hover { background: #2a9a39; border-color: #278f34; }
+button.secondary { background: #ffb700; border-color: #e6a500; color: #242931; }
+button.secondary:hover { background: #e6a500; border-color: #cc9200; }
+button.settings-btn { background: #667189; border-color: #5b6578; }
+button.settings-btn:hover { background: #5b6578; border-color: #505868; }
+
+.status-bar {
+    padding: 10px 14px;
+    background: #fff;
+    border-radius: 2px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid rgba(172, 179, 194, 0.2);
+    color: #454d5d;
+}
+.status-bar .status-text { flex: 1; }
+.progress-container {
+    width: 200px;
+    height: 6px;
+    background: #e7e9ed;
+    border-radius: 3px;
+    overflow: hidden;
+    display: none;
+}
+.progress-bar {
+    height: 100%;
+    background: #3085EE;
+    border-radius: 3px;
+    transition: width 0.3s;
+    width: 0%;
+}
+
+.settings-panel {
+    display: none;
+    padding: 15px;
+    background: #fff;
+    border-radius: 2px;
+    margin-bottom: 10px;
+    box-shadow: 0 10px 45px -9px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(172, 179, 194, 0.2);
+}
+.settings-panel.visible { display: block; }
+.settings-panel label {
+    display: block;
+    margin: 8px 0 4px;
+    font-size: 13px;
+    color: #667189;
+}
+.settings-panel input {
+    width: 100%;
+    padding: 8px;
+    background: #fff;
+    border: 1px solid rgba(172, 179, 194, 0.4);
+    border-radius: 2px;
+    color: #454d5d;
+    font-family: monospace;
+    font-size: 13px;
+}
+.settings-panel input:focus {
+    outline: none;
+    border-color: #3085EE;
+}
+
+.info {
+    background: #fff;
+    padding: 15px;
+    border-radius: 2px;
+    margin-top: 12px;
+    border-left: 4px solid #3085EE;
+    font-size: 13px;
+    box-shadow: 0 10px 45px -9px rgba(0, 0, 0, 0.1);
+}
+.info h3 { margin: 0 0 8px 0; color: #242931; }
+.info p { margin: 4px 0; color: #667189; }
+
+.node-info {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #fff;
+    border: 1px solid rgba(172, 179, 194, 0.2);
+    border-radius: 2px;
+    padding: 15px;
+    min-width: 250px;
+    max-width: 350px;
+    font-size: 13px;
+    z-index: 100;
+    box-shadow: 0 10px 45px -9px rgba(0, 0, 0, 0.1);
+}
+.node-info.visible { display: block; }
+.node-info h4 { margin: 0 0 8px 0; color: #242931; }
+.node-info .field { margin: 4px 0; }
+.node-info .field .key { color: #acb3c2; }
+.node-info .field .value { color: #454d5d; }
+.node-info .address {
+    font-family: monospace;
+    font-size: 11px;
+    word-break: break-all;
+    color: #3085EE;
+    margin-top: 4px;
+}
