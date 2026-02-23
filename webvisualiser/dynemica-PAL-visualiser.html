@@ -91,15 +91,25 @@
     
     <div class="info">
         <h3>How to use:</h3>
-        <p>• <strong>Node size</strong>: Proportional to tokens held</p>
+        <p>• <strong>Hollow rings</strong>: Network centers — colored border, white fill, sized by number of exchanges</p>
+        <p>• <strong>Solid nodes</strong>: Individuals — filled color, sized by tokens held</p>
         <p>• <strong>Edge color</strong>: Warmer = more recent transaction</p>
-        <p>• <strong>Red nodes</strong>: Major token holders/Issuers</p>
-        <p>• <strong>Blue nodes</strong>: Regular participants</p>
         <p>• Click any node to see details</p>
         <p>• Drag nodes to rearrange, scroll to zoom</p>
     </div>
 
     <script>
+    // Network centers: wallets listed here are rendered as hollow rings (colored
+    // border, white fill) sized by their number of exchanges.  Wallets not
+    // listed are treated as individuals with solid-filled nodes sized by tokens.
+    const WALLET_CONFIG = {
+        'distributor': { label: 'Main Distributor', color: '#e03131' },
+        'walletA':     { label: 'Wallet A',         color: '#1971c2' },
+        // 'walletB':  { label: 'Bob',              color: '#2f9e44' },
+    };
+
+    function isCenter(id) { return id in WALLET_CONFIG; }
+
     // TON API configuration
     const CONFIG = {
         // Replace with actual PAL token contract address
@@ -144,14 +154,17 @@
             }
         },
         
-        // Get node color based on role and token amount
-        getNodeColor: function(role, tokens) {
+        // Get node color: per-wallet override first, then role-based fallback
+        getNodeColor: function(id, role, tokens) {
+            const cfg = WALLET_CONFIG[id];
+            if (cfg && cfg.color) return cfg.color;
+
             if (role === 'Issuer') {
-                return '#ff6b6b'; // Red for issuers
+                return '#ff6b6b';
             } else if (tokens > 1000) {
-                return '#4dabf7'; // Bright blue for large holders
+                return '#4dabf7';
             } else {
-                return '#69db7c'; // Green for regular holders
+                return '#69db7c';
             }
         }
     };
@@ -294,7 +307,8 @@
         }
 
         formatAddress(address) {
-            // Format long addresses for display
+            const cfg = WALLET_CONFIG[address];
+            if (cfg && cfg.label) return cfg.label;
             if (address.length > 10) {
                 return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
             }
@@ -311,21 +325,42 @@
                         selector: 'node',
                         style: {
                             'background-color': function(ele) {
+                                if (isCenter(ele.data('id'))) return '#ffffff';
                                 return ColorUtils.getNodeColor(
-                                    ele.data('role'), 
+                                    ele.data('id'),
+                                    ele.data('role'),
                                     ele.data('tokens')
                                 );
                             },
+                            'border-width': function(ele) {
+                                if (!isCenter(ele.data('id'))) return 0;
+                                const conn = ele.data('connections') || 1;
+                                return Math.max(3, Math.min(10, conn * 1.5));
+                            },
+                            'border-color': function(ele) {
+                                const cfg = WALLET_CONFIG[ele.data('id')];
+                                return (cfg && cfg.color) ? cfg.color : '#333';
+                            },
                             'label': function(ele) {
+                                const id = ele.data('id');
+                                const cfg = WALLET_CONFIG[id];
+                                const name = (cfg && cfg.label) ? cfg.label : ele.data('label');
                                 const tokens = ele.data('tokens');
-                                return `${ele.data('label')}\n${tokens.toLocaleString()} PAL`;
+                                return `${name}\n${tokens.toLocaleString()} PAL`;
                             },
                             'width': function(ele) {
+                                if (isCenter(ele.data('id'))) {
+                                    const conn = ele.data('connections') || 1;
+                                    return 30 + conn * 6;
+                                }
                                 const tokens = ele.data('tokens') || 0;
-                                // Scale size based on token amount (logarithmic for better visualization)
                                 return 20 + Math.log10(tokens + 1) * 15;
                             },
                             'height': function(ele) {
+                                if (isCenter(ele.data('id'))) {
+                                    const conn = ele.data('connections') || 1;
+                                    return 30 + conn * 6;
+                                }
                                 const tokens = ele.data('tokens') || 0;
                                 return 20 + Math.log10(tokens + 1) * 15;
                             },
@@ -334,7 +369,7 @@
                             'text-outline-color': '#000',
                             'text-outline-width': '2px',
                             'text-wrap': 'wrap',
-                            'text-max-width': '80px',
+                            'text-max-width': '100px',
                             'text-halign': 'center',
                             'text-valign': 'center'
                         }
