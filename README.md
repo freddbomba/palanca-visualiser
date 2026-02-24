@@ -1,6 +1,8 @@
 # TON Palanca Explorer
 
 Interactive visualizer for the Palanca (PAL) token network on the TON blockchain.
+
+**v1** (tag `v1.0.0`) — stable. **v2** — in development on branch `v2`; see [V2_ROADMAP.md](V2_ROADMAP.md).
 Renders wallet addresses as nodes and token transfers as directed edges using Cytoscape.js, with live data fetched from TONAPI.
 
 Started by fredd — 30 Jan 2026
