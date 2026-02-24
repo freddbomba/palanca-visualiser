@@ -4,108 +4,7 @@
     <meta charset="UTF-8">
     <title>Palanca Token Network - Dynamic Visualiser</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
-    <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-        }
-        #cy {
-            width: 100%;
-            height: 70vh;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            background: white;
-        }
-        .controls {
-            margin: 20px 0;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        button {
-            padding: 8px 15px;
-            background: #4a6fa5;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            flex: 1;
-            min-width: 120px;
-        }
-        button:hover { background: #3a5a8a; }
-        button.primary { background: #2f9e44; }
-        button.primary:hover { background: #237a34; }
-        button.secondary { background: #e8590c; }
-        button.secondary:hover { background: #c4450a; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .separator { width: 2px; background: #ddd; align-self: stretch; flex: 0 0 2px; min-width: 2px; }
-        .info {
-            background: #e8f4fd;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            border-left: 4px solid #4a6fa5;
-        }
-        .status {
-            background: #fff3cd;
-            padding: 10px 15px;
-            border-radius: 4px;
-            margin: 10px 0;
-            border-left: 4px solid #ffc107;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .progress-container {
-            display: none;
-            width: 100%;
-            height: 6px;
-            background: #e9ecef;
-            border-radius: 3px;
-            margin-top: 6px;
-        }
-        .progress-bar {
-            height: 100%;
-            width: 0%;
-            background: #4a6fa5;
-            border-radius: 3px;
-            transition: width 0.3s;
-        }
-        .settings-panel {
-            display: none;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 10px;
-        }
-        .settings-panel.visible { display: block; }
-        .settings-panel label { display: block; font-weight: bold; margin-top: 10px; font-size: 13px; }
-        .settings-panel label:first-child { margin-top: 0; }
-        .settings-panel input {
-            width: 100%; padding: 6px 8px; margin-top: 4px;
-            border: 1px solid #ccc; border-radius: 4px; font-size: 13px;
-            box-sizing: border-box;
-        }
-        .node-info {
-            display: none;
-            position: fixed; bottom: 20px; right: 20px;
-            background: white; padding: 15px; border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            min-width: 220px; max-width: 350px; font-size: 13px;
-        }
-        .node-info.visible { display: block; }
-        .node-info h4 { margin: 0 0 8px; }
-        .node-info .field { margin: 3px 0; }
-        .node-info .key { font-weight: bold; }
-        .node-info .address { font-family: monospace; font-size: 11px; word-break: break-all; margin-top: 4px; color: #555; }
-    </style>
+    <link rel="stylesheet" href="dynemica-visualiser.css">
 </head>
 <body>
     <h1>Palanca Token Network - Dynamic Visualiser</h1>
@@ -129,6 +28,7 @@
         <button class="primary" id="fetch-btn">Fetch Live Data</button>
         <button class="secondary" id="demo-btn">Load Demo Data</button>
         <button id="settings-btn">Settings</button>
+        <button id="save-btn">Save JSON</button>
         <div class="separator"></div>
         <button id="cose-layout">Force Layout</button>
         <button id="circle-layout">Circle Layout</button>
@@ -144,6 +44,7 @@
         <div class="field"><span class="key">Balance: </span><span class="value" id="node-info-balance">-</span></div>
         <div class="field"><span class="key">Connections: </span><span class="value" id="node-info-connections">-</span></div>
         <div class="field"><span class="key">Type: </span><span class="value" id="node-info-type">-</span></div>
+        <div class="field"><span class="key">Last received: </span><span class="value" id="node-info-last">-</span></div>
         <div class="field"><span class="key">Address: </span></div>
         <div class="address" id="node-info-address">-</div>
     </div>
@@ -159,7 +60,7 @@
     </div>
 
     <script>
-    // ── Network Centers ──────────────────────────────────────────────
+    // ── Config ───────────────────────────────────────────────────────
     // Wallets listed here render as hollow rings (colored border, white fill)
     // sized by their number of exchanges.  All others are solid-filled individuals.
     const WALLET_CONFIG = {
@@ -175,26 +76,25 @@
 
     function isCenter(id) { return id in WALLET_CONFIG; }
 
-    // ── Constants ────────────────────────────────────────────────────
     const DEFAULT_JETTON = 'EQD0XmxQk5KxrKzz6HFrPZFHWcf_BQH-vuUM0o4ULvjTfOcy';
     const TONAPI_BASE = 'https://tonapi.io';
 
     // ── Demo Data (13-node sample graph) ─────────────────────────────
     const DEMO_DATA = {
         nodes: [
-            { data: { id: 'distributor', label: 'Main Distributor', role: 'Issuer', connections: 9, balance: 10000 } },
-            { data: { id: 'walletA', label: 'Wallet A', role: 'Participant', connections: 4, balance: 800 } },
-            { data: { id: 'walletB', label: 'Wallet B', role: 'Participant', connections: 2, balance: 500 } },
-            { data: { id: 'walletC', label: 'Wallet C', role: 'Participant', connections: 2, balance: 200 } },
-            { data: { id: 'walletD', label: 'Wallet D', role: 'Participant', connections: 2, balance: 100 } },
-            { data: { id: 'walletE', label: 'Wallet E', role: 'Participant', connections: 1, balance: 50 } },
-            { data: { id: 'walletF', label: 'Wallet F', role: 'Participant', connections: 1, balance: 300 } },
-            { data: { id: 'walletG', label: 'Wallet G', role: 'Participant', connections: 1, balance: 300 } },
-            { data: { id: 'walletH', label: 'Wallet H', role: 'Participant', connections: 1, balance: 100 } },
-            { data: { id: 'walletI', label: 'Wallet I', role: 'Participant', connections: 1, balance: 100 } },
-            { data: { id: 'walletJ', label: 'Wallet J', role: 'Participant', connections: 1, balance: 300 } },
-            { data: { id: 'walletK', label: 'Wallet K', role: 'Participant', connections: 1, balance: 100 } },
-            { data: { id: 'walletL', label: 'Wallet L', role: 'Participant', connections: 1, balance: 100 } }
+            { data: { id: 'distributor', label: 'Main Distributor', role: 'Issuer', connections: 9, balance: 10000, lastReceived: 0 } },
+            { data: { id: 'walletA', label: 'Wallet A', role: 'Participant', connections: 4, balance: 800, lastReceived: 0 } },
+            { data: { id: 'walletB', label: 'Wallet B', role: 'Participant', connections: 2, balance: 500, lastReceived: 0 } },
+            { data: { id: 'walletC', label: 'Wallet C', role: 'Participant', connections: 2, balance: 200, lastReceived: 0 } },
+            { data: { id: 'walletD', label: 'Wallet D', role: 'Participant', connections: 2, balance: 100, lastReceived: 0 } },
+            { data: { id: 'walletE', label: 'Wallet E', role: 'Participant', connections: 1, balance: 50, lastReceived: 0 } },
+            { data: { id: 'walletF', label: 'Wallet F', role: 'Participant', connections: 1, balance: 300, lastReceived: 0 } },
+            { data: { id: 'walletG', label: 'Wallet G', role: 'Participant', connections: 1, balance: 300, lastReceived: 0 } },
+            { data: { id: 'walletH', label: 'Wallet H', role: 'Participant', connections: 1, balance: 100, lastReceived: 0 } },
+            { data: { id: 'walletI', label: 'Wallet I', role: 'Participant', connections: 1, balance: 100, lastReceived: 0 } },
+            { data: { id: 'walletJ', label: 'Wallet J', role: 'Participant', connections: 1, balance: 300, lastReceived: 0 } },
+            { data: { id: 'walletK', label: 'Wallet K', role: 'Participant', connections: 1, balance: 100, lastReceived: 0 } },
+            { data: { id: 'walletL', label: 'Wallet L', role: 'Participant', connections: 1, balance: 100, lastReceived: 0 } }
         ],
         edges: [
             { data: { id: 'edge1',  source: 'distributor', target: 'walletA', amount: 300 } },
@@ -259,6 +159,30 @@
         const d = new Date(ts * 1000);
         const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+    }
+
+    // ── Local cache ───────────────────────────────────────────────────
+    const CACHE_KEY = 'pal_graph_cache';
+
+    function saveGraphCache(data) {
+        try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({
+                data: data,
+                fetchedAt: Date.now()
+            }));
+        } catch (e) {
+            console.warn('Could not cache graph data:', e.message);
+        }
+    }
+
+    function loadGraphCache() {
+        try {
+            const raw = localStorage.getItem(CACHE_KEY);
+            if (!raw) return null;
+            return JSON.parse(raw);
+        } catch (e) {
+            return null;
+        }
     }
 
     // ── API ──────────────────────────────────────────────────────────
@@ -355,6 +279,13 @@
             }
         }
 
+        const lastReceived = {};
+        for (const t of transfers) {
+            if (t.timestamp && (!lastReceived[t.recipient] || t.timestamp > lastReceived[t.recipient])) {
+                lastReceived[t.recipient] = t.timestamp;
+            }
+        }
+
         const connectionCount = {};
         const outgoingCount = {};
         for (const addr of addressSet) {
@@ -381,7 +312,8 @@
                     label: getLabel(addr),
                     role: issuerSet.has(addr) ? 'Issuer' : 'Participant',
                     connections: connectionCount[addr] || 0,
-                    balance: balanceMap[addr] || 0
+                    balance: balanceMap[addr] || 0,
+                    lastReceived: lastReceived[addr] || 0
                 }
             });
         }
@@ -525,6 +457,10 @@
             $('node-info-balance').textContent = node.data('balance') ? node.data('balance').toLocaleString() + ' PAL' : '-';
             $('node-info-connections').textContent = node.data('connections');
             $('node-info-type').textContent = isCenter(node.data('id')) ? 'Center' : 'Individual';
+            var lr = node.data('lastReceived');
+            $('node-info-last').textContent = (lr && lr > 0)
+                ? formatDate(lr) + ' (' + Math.round((Date.now() / 1000 - lr) / 86400) + ' days ago)'
+                : '-';
             $('node-info-address').textContent = node.data('id');
             nodeInfoPanel.classList.add('visible');
         });
@@ -595,6 +531,7 @@
             setProgress(100);
 
             renderGraph(graphData);
+            saveGraphCache(graphData);
         } catch (e) {
             if (e.name === 'AbortError') {
                 setStatus('Fetch cancelled.');
@@ -614,6 +551,23 @@
         renderGraph(DEMO_DATA);
     }
 
+    function saveJSON() {
+        if (!cy) { setStatus('No graph data to save.'); return; }
+        var data = {
+            nodes: cy.nodes().map(function(n) { return n.data(); }),
+            edges: cy.edges().map(function(e) { return e.data(); }),
+            exportedAt: new Date().toISOString()
+        };
+        var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'palanca-network-' + new Date().toISOString().slice(0, 10) + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        setStatus('Saved JSON (' + data.nodes.length + ' nodes, ' + data.edges.length + ' edges)');
+    }
+
     function applyLayout(name) {
         if (!cy) return;
         cy.layout({ name: name, animate: true, animationDuration: 1000, padding: 50 }).run();
@@ -623,8 +577,22 @@
     document.addEventListener('DOMContentLoaded', function() {
         jettonInput.value = DEFAULT_JETTON;
 
+        var cached = loadGraphCache();
+        if (cached && cached.data) {
+            var firstNode = (cached.data.nodes || [])[0];
+            if (firstNode && firstNode.data && firstNode.data.lastReceived !== undefined) {
+                renderGraph(cached.data);
+                var when = new Date(cached.fetchedAt).toLocaleString();
+                setStatus('Cached data from ' + when + ': ' + cy.nodes().length + ' wallets, ' + cy.edges().length + ' transfers');
+            } else {
+                localStorage.removeItem(CACHE_KEY);
+                setStatus('Stale cache cleared. Click "Fetch Live Data" to reload.');
+            }
+        }
+
         $('fetch-btn').addEventListener('click', fetchAndRender);
         $('demo-btn').addEventListener('click', loadDemoData);
+        $('save-btn').addEventListener('click', saveJSON);
 
         $('settings-btn').addEventListener('click', function() {
             settingsPanel.classList.toggle('visible');
