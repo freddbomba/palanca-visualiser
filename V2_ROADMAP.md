@@ -13,6 +13,14 @@ Branch `v2` — development of the next iteration of the Palanca token network v
 
 ---
 
+## Implemented (v2)
+
+| Feature | Description |
+|--------|-------------|
+| **Permanent pseudonyms** | `wallet-labels.json` in repo; fetch at load; "Claim pseudonym" UI with PR instructions |
+
+---
+
 ## Proposed v2 enhancements
 
 ### High priority

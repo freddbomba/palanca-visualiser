@@ -24,6 +24,25 @@
         <input type="text" id="apikey-input" placeholder="Your TONAPI key" />
     </div>
 
+    <div class="rename-modal" id="rename-modal">
+        <div class="rename-modal-content">
+            <div class="rename-modal-form" id="rename-modal-form">
+                <h4 id="rename-modal-title">Rename node</h4>
+                <p class="rename-modal-address" id="rename-modal-address"></p>
+                <label for="rename-input">Label</label>
+                <input type="text" id="rename-input" placeholder="Your name" />
+                <label class="rename-checkbox-label">
+                    <input type="checkbox" id="rename-make-permanent" /> Make permanent (visible to all)
+                </label>
+                <div class="rename-modal-actions">
+                    <button id="rename-submit">Save</button>
+                    <button id="rename-cancel">Cancel</button>
+                </div>
+            </div>
+            <div class="rename-pr-instructions" id="rename-pr-instructions"></div>
+        </div>
+    </div>
+
     <div class="controls">
         <button class="primary" id="fetch-btn">Fetch Live Data</button>
         <button class="secondary" id="demo-btn">Load Demo Data</button>
@@ -55,7 +74,7 @@
         <p>• <strong>Nodi solidi</strong>: Partecipanti — colore pieno, la grandezza dice quante palanche hanno ricevuto</p>
         <p>• <strong>Archi colore</strong>: Arancio = trasferimenti recenti, grigio = trasferimenti meno recenti</p>
         <p>• Clicca su un nodo per evidenziare il suo vicinato</p>
-        <p>• Doppio clic su un nodo per rinominarlo (salvato nel browser)</p>
+        <p>• Doppio clic su un nodo per rinominarlo; spunta "Make permanent" per renderlo visibile a tutti</p>
         <p>• Trascina i nodi per riarrangiarli, scrolla per zoomare</p>
     </div>
 
@@ -78,6 +97,7 @@
 
     const DEFAULT_JETTON = 'EQD0XmxQk5KxrKzz6HFrPZFHWcf_BQH-vuUM0o4ULvjTfOcy';
     const TONAPI_BASE = 'https://tonapi.io';
+    const WALLET_LABELS_URL = 'https://raw.githubusercontent.com/freddbomba/palanca-visualiser/v2/webvisualiser/wallet-labels.json';
 
     // ── Demo Data (13-node sample graph) ─────────────────────────────
     const DEMO_DATA = {
@@ -116,6 +136,7 @@
     // ── State ────────────────────────────────────────────────────────
     let cy = null;
     let fetchAbort = null;
+    let remoteLabels = {};
 
     // ── DOM refs ─────────────────────────────────────────────────────
     const $ = id => document.getElementById(id);
@@ -144,15 +165,75 @@
     }
 
     function getLabel(address) {
-        const cfg = WALLET_CONFIG[address];
-        if (cfg && cfg.label) return cfg.label;
         const stored = localStorage.getItem('pal_label_' + address);
         if (stored) return stored;
+        const cfg = WALLET_CONFIG[address];
+        if (cfg && cfg.label) return cfg.label;
+        if (remoteLabels[address]) return remoteLabels[address];
         return truncateAddress(address);
     }
 
     function saveLabel(address, name) {
         localStorage.setItem('pal_label_' + address, name);
+    }
+
+    function openRenameModal(node) {
+        var addr = node.data('id');
+        var current = node.data('label');
+        var modal = $('rename-modal');
+        var input = $('rename-input');
+        var form = $('rename-modal-form');
+        var prInstructions = $('rename-pr-instructions');
+        $('rename-modal-address').textContent = addr;
+        input.value = current;
+        $('rename-make-permanent').checked = false;
+        form.style.display = 'block';
+        prInstructions.innerHTML = '';
+        prInstructions.style.display = 'none';
+        modal.classList.add('visible');
+        input.focus();
+        input.select();
+        window._renameNode = node;
+    }
+
+    function closeRenameModal() {
+        $('rename-modal').classList.remove('visible');
+        var node = window._renameNode;
+        window._renameNode = null;
+        if (cy && node) {
+            cy.style().update();
+            cy.center(node);
+        }
+    }
+
+    function showPrInstructions(addr, name) {
+        var escapedAddr = addr.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        var escapedName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        var snippet = '  "' + escapedAddr + '": "' + escapedName + '"';
+        var editUrl = 'https://github.com/freddbomba/palanca-visualiser/edit/v2/webvisualiser/wallet-labels.json';
+        $('rename-modal-form').style.display = 'none';
+        var prInstructions = $('rename-pr-instructions');
+        prInstructions.innerHTML =
+            '<p>Add your line to <code>wallet-labels.json</code>, then save. GitHub will create a PR for you.</p>' +
+            '<div class="rename-snippet-row">' +
+            '<pre class="rename-snippet">' + snippet + '</pre>' +
+            '<button class="rename-copy" title="Copy">Copy</button>' +
+            '</div>' +
+            '<a class="rename-edit-btn" href="' + editUrl + '" target="_blank" rel="noopener">Edit on GitHub</a>' +
+            '<button id="rename-close">Close</button>';
+        prInstructions.style.display = 'block';
+        prInstructions.querySelector('.rename-copy').addEventListener('click', function() {
+            navigator.clipboard.writeText(snippet).then(function() {
+                var btn = prInstructions.querySelector('.rename-copy');
+                var old = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(function() { btn.textContent = old; }, 1500);
+            });
+        });
+        prInstructions.querySelector('#rename-close').addEventListener('click', function() {
+            closeRenameModal();
+            setStatus('Label saved (local). Submit a PR to make it permanent for all.');
+        });
     }
 
     function formatDate(ts) {
@@ -182,6 +263,32 @@
             return JSON.parse(raw);
         } catch (e) {
             return null;
+        }
+    }
+
+    // ── Remote wallet labels (permanent pseudonyms) ───────────────────
+    async function fetchWalletLabels() {
+        const urls = [
+            WALLET_LABELS_URL,
+            'wallet-labels.json'
+        ];
+        for (const url of urls) {
+            try {
+                const resp = await fetch(url);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data && typeof data === 'object') {
+                        for (const k of Object.keys(data)) {
+                            if (!k.startsWith('_') && typeof data[k] === 'string') {
+                                remoteLabels[k] = data[k];
+                            }
+                        }
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not fetch wallet-labels from ' + url + ':', e.message);
+            }
         }
     }
 
@@ -332,126 +439,27 @@
     }
 
     // ── Render ───────────────────────────────────────────────────────
-    function renderGraph(data) {
+    function renderGraphStatic(data) {
         if (cy) cy.destroy();
-
         cy = cytoscape({
             container: document.getElementById('cy'),
             elements: data,
-            style: [
-                {
-                    selector: 'node',
-                    style: {
-                        'background-color': function(ele) {
-                            if (isCenter(ele.data('id'))) return '#ffffff';
-                            var role = ele.data('role');
-                            var bal  = ele.data('balance') || 0;
-                            if (role === 'Issuer') return '#ff6b6b';
-                            if (bal > 1000) return '#4dabf7';
-                            return '#69db7c';
-                        },
-                        'border-width': function(ele) {
-                            if (!isCenter(ele.data('id'))) return 0;
-                            var conn = ele.data('connections') || 1;
-                            return Math.max(3, Math.min(10, conn * 1.5));
-                        },
-                        'border-color': function(ele) {
-                            var cfg = WALLET_CONFIG[ele.data('id')];
-                            return (cfg && cfg.color) ? cfg.color : '#333';
-                        },
-                        'label': function(ele) {
-                            var cfg = WALLET_CONFIG[ele.data('id')];
-                            var name = (cfg && cfg.label) ? cfg.label : ele.data('label');
-                            var bal = ele.data('balance');
-                            if (bal != null && bal > 0) return name + '\n' + bal.toLocaleString() + ' PAL';
-                            return name;
-                        },
-                        'width': function(ele) {
-                            if (isCenter(ele.data('id'))) {
-                                var conn = ele.data('connections') || 1;
-                                return 30 + conn * 6;
-                            }
-                            var bal = ele.data('balance') || 0;
-                            if (bal > 0) return 25 + 12 * Math.log10(bal);
-                            return 30 + (ele.data('connections') || 0) * 5;
-                        },
-                        'height': function(ele) {
-                            if (isCenter(ele.data('id'))) {
-                                var conn = ele.data('connections') || 1;
-                                return 30 + conn * 6;
-                            }
-                            var bal = ele.data('balance') || 0;
-                            if (bal > 0) return 25 + 12 * Math.log10(bal);
-                            return 30 + (ele.data('connections') || 0) * 5;
-                        },
-                        'font-size': '12px',
-                        'color': '#242931',
-                        'text-outline-color': '#fff',
-                        'text-outline-width': '2px',
-                        'text-wrap': 'wrap',
-                        'text-max-width': '100px',
-                        'text-valign': 'bottom',
-                        'text-margin-y': 5
-                    }
-                },
-                {
-                    selector: 'edge',
-                    style: {
-                        'width': function(ele) {
-                            return Math.max(1, Math.min(5, ele.data('amount') / 100));
-                        },
-                        'line-color': function(ele) {
-                            return ele.data('amount') >= 300 ? '#ffb700' : '#acb3c2';
-                        },
-                        'target-arrow-color': function(ele) {
-                            return ele.data('amount') >= 300 ? '#ffb700' : '#acb3c2';
-                        },
-                        'target-arrow-shape': 'triangle',
-                        'curve-style': 'bezier',
-                        'opacity': 0.8,
-                        'label': function(ele) {
-                            var amt = ele.data('amount');
-                            var date = ele.data('date');
-                            return amt + (date ? '\n' + date : '');
-                        },
-                        'font-size': '9px',
-                        'color': '#667189',
-                        'text-outline-color': '#fff',
-                        'text-outline-width': '1px',
-                        'text-rotation': 'autorotate',
-                        'text-wrap': 'wrap',
-                        'text-max-width': '100px'
-                    }
-                },
-                {
-                    selector: 'node.highlighted',
-                    style: { 'border-width': 3, 'border-color': '#242931' }
-                },
-                {
-                    selector: 'node.dimmed',
-                    style: { 'opacity': 0.15 }
-                },
-                {
-                    selector: 'edge.dimmed',
-                    style: { 'opacity': 0.05 }
-                }
-            ],
-            layout: {
-                name: 'cose',
-                padding: 50,
-                animate: true,
-                animationDuration: 1000
-            }
+            style: CY_STYLE,
+            layout: { name: 'cose', padding: 50, animate: true, animationDuration: 1000 }
         });
+        setupCytoscapeEvents();
+        setStatus('Loaded: ' + cy.nodes().length + ' wallets, ' + cy.edges().length + ' transfers');
+    }
 
+    function setupCytoscapeEvents() {
+        if (!cy) return;
+        cy.off('tap dbltap');
         cy.on('tap', 'node', function(evt) {
             var node = evt.target;
             var neighborhood = node.closedNeighborhood();
-
             cy.elements().removeClass('highlighted dimmed');
             cy.elements().not(neighborhood).addClass('dimmed');
             neighborhood.nodes().addClass('highlighted');
-
             $('node-info-label').textContent = node.data('label');
             $('node-info-role').textContent = node.data('role');
             $('node-info-balance').textContent = node.data('balance') ? node.data('balance').toLocaleString() + ' PAL' : '-';
@@ -464,27 +472,77 @@
             $('node-info-address').textContent = node.data('id');
             nodeInfoPanel.classList.add('visible');
         });
-
         cy.on('tap', function(evt) {
             if (evt.target === cy) {
                 cy.elements().removeClass('highlighted dimmed');
                 nodeInfoPanel.classList.remove('visible');
             }
         });
-
         cy.on('dbltap', 'node', function(evt) {
             var node = evt.target;
-            var addr = node.data('id');
-            var current = node.data('label');
-            var newName = prompt('Rename node (' + truncateAddress(addr) + '):', current);
-            if (newName !== null && newName.trim() !== '') {
-                saveLabel(addr, newName.trim());
-                node.data('label', newName.trim());
-            }
+            openRenameModal(node);
         });
-
-        setStatus('Loaded: ' + cy.nodes().length + ' wallets, ' + cy.edges().length + ' transfers');
     }
+
+    const CY_STYLE = [
+        { selector: 'node', style: {
+            'background-color': function(ele) {
+                if (isCenter(ele.data('id'))) return '#ffffff';
+                var role = ele.data('role');
+                var bal = ele.data('balance') || 0;
+                if (role === 'Issuer') return '#ff6b6b';
+                if (bal > 1000) return '#4dabf7';
+                return '#69db7c';
+            },
+            'border-width': function(ele) {
+                if (!isCenter(ele.data('id'))) return 0;
+                var conn = ele.data('connections') || 1;
+                return Math.max(3, Math.min(10, conn * 1.5));
+            },
+            'border-color': function(ele) {
+                var cfg = WALLET_CONFIG[ele.data('id')];
+                return (cfg && cfg.color) ? cfg.color : '#333';
+            },
+            'label': function(ele) {
+                var name = getLabel(ele.data('id'));
+                var bal = ele.data('balance');
+                if (bal != null && bal > 0) return name + '\n' + bal.toLocaleString() + ' PAL';
+                return name;
+            },
+            'width': function(ele) {
+                if (isCenter(ele.data('id'))) {
+                    var conn = ele.data('connections') || 1;
+                    return 30 + conn * 6;
+                }
+                var bal = ele.data('balance') || 0;
+                if (bal > 0) return 25 + 12 * Math.log10(bal);
+                return 30 + (ele.data('connections') || 0) * 5;
+            },
+            'height': function(ele) {
+                if (isCenter(ele.data('id'))) {
+                    var conn = ele.data('connections') || 1;
+                    return 30 + conn * 6;
+                }
+                var bal = ele.data('balance') || 0;
+                if (bal > 0) return 25 + 12 * Math.log10(bal);
+                return 30 + (ele.data('connections') || 0) * 5;
+            },
+            'font-size': '12px', 'color': '#242931', 'text-outline-color': '#fff', 'text-outline-width': '2px',
+            'text-wrap': 'wrap', 'text-max-width': '100px', 'text-valign': 'bottom', 'text-margin-y': 5
+        }},
+        { selector: 'edge', style: {
+            'width': function(ele) { return Math.max(1, Math.min(5, ele.data('amount') / 100)); },
+            'line-color': function(ele) { return ele.data('amount') >= 300 ? '#ffb700' : '#acb3c2'; },
+            'target-arrow-color': function(ele) { return ele.data('amount') >= 300 ? '#ffb700' : '#acb3c2'; },
+            'target-arrow-shape': 'triangle', 'curve-style': 'bezier', 'opacity': 0.8,
+            'label': function(ele) { var amt = ele.data('amount'); var date = ele.data('date'); return amt + (date ? '\n' + date : ''); },
+            'font-size': '9px', 'color': '#667189', 'text-outline-color': '#fff', 'text-outline-width': '1px',
+            'text-rotation': 'autorotate', 'text-wrap': 'wrap', 'text-max-width': '100px'
+        }},
+        { selector: 'node.highlighted', style: { 'border-width': 3, 'border-color': '#242931' }},
+        { selector: 'node.dimmed', style: { 'opacity': 0.15 }},
+        { selector: 'edge.dimmed', style: { 'opacity': 0.05 } }
+    ];
 
     // ── Orchestration ────────────────────────────────────────────────
     async function fetchAndRender() {
@@ -530,7 +588,7 @@
             var graphData = transformToGraphData(holders, allEvents);
             setProgress(100);
 
-            renderGraph(graphData);
+            renderGraphStatic(graphData);
             saveGraphCache(graphData);
         } catch (e) {
             if (e.name === 'AbortError') {
@@ -548,7 +606,7 @@
     }
 
     function loadDemoData() {
-        renderGraph(DEMO_DATA);
+        renderGraphStatic(DEMO_DATA);
     }
 
     function saveJSON() {
@@ -574,14 +632,16 @@
     }
 
     // ── Init ─────────────────────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', async function() {
         jettonInput.value = DEFAULT_JETTON;
+
+        await fetchWalletLabels();
 
         var cached = loadGraphCache();
         if (cached && cached.data) {
             var firstNode = (cached.data.nodes || [])[0];
             if (firstNode && firstNode.data && firstNode.data.lastReceived !== undefined) {
-                renderGraph(cached.data);
+                renderGraphStatic(cached.data);
                 var when = new Date(cached.fetchedAt).toLocaleString();
                 setStatus('Cached data from ' + when + ': ' + cy.nodes().length + ' wallets, ' + cy.edges().length + ' transfers');
             } else {
@@ -596,6 +656,32 @@
 
         $('settings-btn').addEventListener('click', function() {
             settingsPanel.classList.toggle('visible');
+        });
+
+        var renameModal = $('rename-modal');
+        $('rename-submit').addEventListener('click', function() {
+            var node = window._renameNode;
+            if (!node) return;
+            var addr = node.data('id');
+            var name = $('rename-input').value.trim();
+            if (!name) return;
+            saveLabel(addr, name);
+            node.data('label', name);
+            if (cy) cy.style().update();
+            if ($('rename-make-permanent').checked) {
+                showPrInstructions(addr, name);
+            } else {
+                closeRenameModal();
+                setStatus('Label saved (local).');
+            }
+        });
+        $('rename-cancel').addEventListener('click', closeRenameModal);
+        $('rename-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') $('rename-submit').click();
+            if (e.key === 'Escape') closeRenameModal();
+        });
+        renameModal.addEventListener('click', function(e) {
+            if (e.target === renameModal) closeRenameModal();
         });
 
         $('cose-layout').addEventListener('click',   function() { applyLayout('cose'); });

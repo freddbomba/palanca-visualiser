@@ -86,6 +86,93 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
     border: 1px solid #ccc; border-radius: 4px; font-size: 13px;
     box-sizing: border-box;
 }
+.rename-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+.rename-modal.visible { display: flex; }
+.rename-modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    min-width: 320px;
+    max-width: 90%;
+}
+.rename-modal h4 { margin: 0 0 8px; }
+.rename-modal-address {
+    font-family: monospace;
+    font-size: 11px;
+    word-break: break-all;
+    color: #555;
+    margin: 0 0 12px;
+}
+.rename-modal label { display: block; font-weight: bold; margin-top: 10px; font-size: 13px; }
+.rename-modal label:first-of-type { margin-top: 0; }
+.rename-modal input[type="text"] {
+    width: 100%;
+    padding: 8px 10px;
+    margin-top: 4px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+.rename-checkbox-label {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    font-weight: normal !important;
+    margin-top: 12px !important;
+}
+.rename-checkbox-label input { cursor: pointer; }
+.rename-modal-actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 10px;
+}
+.rename-modal-actions button { flex: 1; min-width: 0; }
+.rename-pr-instructions {
+    display: none;
+    margin-top: 0;
+}
+.rename-pr-instructions p { margin: 8px 0; font-size: 12px; }
+.rename-snippet-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin: 10px 0;
+}
+.rename-snippet {
+    flex: 1;
+    overflow-x: auto;
+    padding: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    font-size: 11px;
+    margin: 0;
+}
+.rename-copy {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    font-size: 12px;
+}
+.rename-edit-btn {
+    display: inline-block;
+    margin: 10px 0;
+    padding: 8px 16px;
+    background: #2f9e44;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 13px;
+}
+.rename-edit-btn:hover { background: #237a34; color: white; }
 .node-info {
     display: none;
     position: fixed; bottom: 20px; right: 20px;
