@@ -13,7 +13,6 @@ No build tools required. Open any HTML file directly in a browser:
 |---|---|
 | `webvisualiser/palanca-network.html` | Main visualizer (live TONAPI fetch + demo fallback) |
 | `webvisualiser/historical-visualiser.html` | Historical visualizer with center/individual distinction |
-| `webvisualiser/test.html` | Minimal 3-node test page |
 
 ## Visual Encoding
 
@@ -24,13 +23,7 @@ Nodes are split into two categories configured via `WALLET_CONFIG`:
 - **Centers** (listed in `WALLET_CONFIG`) — hollow rings with a colored border and white fill. Their size is proportional to the number of exchanges (connections) they have made, and their border thickness also scales with connections.
 - **Individuals** (all other wallets) — solid-filled nodes colored by role (red = Issuer, blue = large holder, green = regular). Their size scales logarithmically with tokens held.
 
-Edge color encodes transaction age: hot orange for recent, warm orange for mid-age, gray for old.
-
-### palanca-network
-
-- Node color: red = Issuer (top 20% by outgoing transfers), blue = Participant
-- Node size: scales with connection count
-- Edge width: scales with transfer amount; orange for amounts >= 300, gray otherwise
+Edge color: orange for amounts >= 300, gray otherwise.
 
 ## Architecture
 
