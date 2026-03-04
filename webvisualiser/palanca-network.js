@@ -1,7 +1,6 @@
 // palanca-network.js — main visualiser script
 // Requires: wallets.js (WALLET_CONFIG), cytoscape.js
 
-const DEFAULT_JETTON = 'EQD0XmxQk5KxrKzz6HFrPZFHWcf_BQH-vuUM0o4ULvjTfOcy';
 const TONAPI_BASE = 'https://tonapi.io';
 
 // ── Demo Data (original hardcoded graph) ────────────────────────
@@ -47,9 +46,7 @@ const $ = id => document.getElementById(id);
 const statusEl = $('status');
 const progressContainer = $('progress-container');
 const progressBar = $('progress-bar');
-const settingsPanel = $('settings-panel');
-const jettonInput = $('jetton-input');
-const apikeyInput = $('apikey-input');
+
 const nodeInfoPanel = $('node-info');
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -114,8 +111,7 @@ function loadGraphCache() {
 async function apiGet(path, signal) {
     const url = TONAPI_BASE + path;
     const headers = { 'Accept': 'application/json' };
-    const apiKey = apikeyInput.value.trim();
-    if (apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
+    if (API_KEY) headers['Authorization'] = 'Bearer ' + API_KEY;
     const resp = await fetch(url, { headers, signal });
     if (!resp.ok) {
         const text = await resp.text().catch(() => '');
@@ -392,7 +388,7 @@ function renderGraph(data) {
 
 // ── Orchestration ────────────────────────────────────────────────
 async function fetchAndRender() {
-    const jetton = jettonInput.value.trim() || DEFAULT_JETTON;
+    const jetton = DEFAULT_JETTON;
     const controller = new AbortController();
     fetchAbort = controller;
 
@@ -480,8 +476,6 @@ function applyLayout(name) {
 
 // ── Init ─────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
-    jettonInput.value = DEFAULT_JETTON;
-
     // Load cached data from last fetch (discard if missing new fields)
     var cached = loadGraphCache();
     if (cached && cached.data) {
@@ -499,10 +493,6 @@ document.addEventListener('DOMContentLoaded', function() {
     $('fetch-btn').addEventListener('click', fetchAndRender);
     $('demo-btn').addEventListener('click', loadDemoData);
     $('save-btn').addEventListener('click', saveJSON);
-
-    $('settings-btn').addEventListener('click', function() {
-        settingsPanel.classList.toggle('visible');
-    });
 
     $('cose-layout').addEventListener('click', function() { applyLayout('cose'); });
     $('circle-layout').addEventListener('click', function() { applyLayout('circle'); });

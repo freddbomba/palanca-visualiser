@@ -4,7 +4,6 @@
 function isCenter(id) { return id in WALLET_CONFIG; }
 
 // ── Constants ────────────────────────────────────────────────────
-const DEFAULT_JETTON = 'EQD0XmxQk5KxrKzz6HFrPZFHWcf_BQH-vuUM0o4ULvjTfOcy';
 const TONAPI_BASE = 'https://tonapi.io';
 
 // ── Demo Data (13-node sample graph) ─────────────────────────────
@@ -50,9 +49,7 @@ const $ = id => document.getElementById(id);
 const statusEl         = $('status-text');
 const progressContainer = $('progress-container');
 const progressBar       = $('progress-bar');
-const settingsPanel     = $('settings-panel');
-const jettonInput       = $('jetton-input');
-const apikeyInput       = $('apikey-input');
+
 const nodeInfoPanel     = $('node-info');
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -89,12 +86,32 @@ function formatDate(ts) {
     return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
 }
 
+// ── Local cache ─────────────────────────────────────────────────
+const CACHE_KEY = 'pal_graph_cache';
+
+function saveGraphCache(data) {
+    try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ data: data, fetchedAt: Date.now() }));
+    } catch (e) {
+        console.warn('Could not cache graph data:', e.message);
+    }
+}
+
+function loadGraphCache() {
+    try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+    } catch (e) {
+        return null;
+    }
+}
+
 // ── API ──────────────────────────────────────────────────────────
 async function apiGet(path, signal) {
     const url = TONAPI_BASE + path;
     const headers = { 'Accept': 'application/json' };
-    const apiKey = apikeyInput.value.trim();
-    if (apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
+    if (API_KEY) headers['Authorization'] = 'Bearer ' + API_KEY;
     const resp = await fetch(url, { headers, signal });
     if (!resp.ok) {
         const text = await resp.text().catch(() => '');
@@ -183,6 +200,13 @@ function transformToGraphData(holders, allEvents) {
         }
     }
 
+    const lastReceived = {};
+    for (const t of transfers) {
+        if (t.timestamp && (!lastReceived[t.recipient] || t.timestamp > lastReceived[t.recipient])) {
+            lastReceived[t.recipient] = t.timestamp;
+        }
+    }
+
     const connectionCount = {};
     const outgoingCount = {};
     for (const addr of addressSet) {
@@ -209,7 +233,8 @@ function transformToGraphData(holders, allEvents) {
                 label: getLabel(addr),
                 role: issuerSet.has(addr) ? 'Issuer' : 'Participant',
                 connections: connectionCount[addr] || 0,
-                balance: balanceMap[addr] || 0
+                balance: balanceMap[addr] || 0,
+                lastReceived: lastReceived[addr] || 0
             }
         });
     }
@@ -380,7 +405,7 @@ function renderGraph(data) {
 
 // ── Orchestration ────────────────────────────────────────────────
 async function fetchAndRender() {
-    var jetton = jettonInput.value.trim() || DEFAULT_JETTON;
+    var jetton = DEFAULT_JETTON;
     var controller = new AbortController();
     fetchAbort = controller;
 
@@ -423,6 +448,7 @@ async function fetchAndRender() {
         setProgress(100);
 
         renderGraph(graphData);
+        saveGraphCache(graphData);
     } catch (e) {
         if (e.name === 'AbortError') {
             setStatus('Fetch cancelled.');
@@ -449,14 +475,18 @@ function applyLayout(name) {
 
 // ── Init ─────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
-    jettonInput.value = DEFAULT_JETTON;
+    var cached = loadGraphCache();
+    if (cached && cached.data) {
+        var firstNode = (cached.data.nodes || [])[0];
+        if (firstNode && firstNode.data && firstNode.data.lastReceived !== undefined) {
+            renderGraph(cached.data);
+            var when = new Date(cached.fetchedAt).toLocaleString();
+            setStatus('Cached data from ' + when + ': ' + cy.nodes().length + ' wallets, ' + cy.edges().length + ' transfers');
+        }
+    }
 
     $('fetch-btn').addEventListener('click', fetchAndRender);
     $('demo-btn').addEventListener('click', loadDemoData);
-
-    $('settings-btn').addEventListener('click', function() {
-        settingsPanel.classList.toggle('visible');
-    });
 
     $('cose-layout').addEventListener('click',   function() { applyLayout('cose'); });
     $('circle-layout').addEventListener('click', function() { applyLayout('circle'); });
