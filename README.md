@@ -12,12 +12,12 @@ No build tools required. Open any HTML file directly in a browser:
 | File | Purpose |
 |---|---|
 | `webvisualiser/palanca-network.html` | Main visualizer (live TONAPI fetch + demo fallback) |
-| `webvisualiser/dynemica-PAL-visualiser.html` | Dynamic visualizer with center/individual distinction |
+| `webvisualiser/historical-visualiser.html` | Historical visualizer with center/individual distinction |
 | `webvisualiser/test.html` | Minimal 3-node test page |
 
 ## Visual Encoding
 
-### dynemica-PAL-visualiser
+### historical-visualiser
 
 Nodes are split into two categories configured via `WALLET_CONFIG`:
 

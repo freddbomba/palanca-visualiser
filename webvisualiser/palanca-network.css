@@ -144,6 +144,20 @@ button.settings-btn:hover { background: #5b6578; border-color: #505868; }
     box-shadow: 0 10px 45px -9px rgba(0, 0, 0, 0.1);
 }
 .node-info.visible { display: block; }
+
+a.nav-switch {
+    padding: 8px 14px;
+    background: #454d5d;
+    color: #fff;
+    border: 1px solid #3a4250;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 13px;
+    text-decoration: none;
+    transition: all 0.5s ease;
+    white-space: nowrap;
+}
+a.nav-switch:hover { background: #3a4250; border-color: #2f3540; }
 .node-info h4 { margin: 0 0 8px 0; color: #242931; }
 .node-info .field { margin: 4px 0; }
 .node-info .field .key { color: #acb3c2; }
