@@ -12,7 +12,7 @@ No build tools required. Open any HTML file directly in a browser:
 | File | Purpose |
 |---|---|
 | `webvisualiser/palanca-network.html` | Main visualizer (live TONAPI fetch + demo fallback) |
-| `webvisualiser/historical-visualiser.html` | Historical visualizer with center/individual distinction |
+| `webvisualiser/index.html` | Historical visualizer with center/individual distinction (default page) |
 
 ## Visual Encoding
 
