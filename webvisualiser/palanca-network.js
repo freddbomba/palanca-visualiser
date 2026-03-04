@@ -270,22 +270,29 @@ function renderGraph(data) {
                 selector: 'node',
                 style: {
                     'background-color': function(ele) {
+                        // Yellow (#ffd43b = 255,212,59) → Blue (#3085EE = 48,133,238)
+                        // t=0 recent, t=1 two weeks or more ago / never
                         var lr = ele.data('lastReceived');
-                        if (lr && (Date.now() / 1000 - lr) < 7 * 24 * 3600) {
-                            return '#ffb700';
-                        }
-                        return '#3085EE';
+                        var t = lr ? Math.min(1, (Date.now() / 1000 - lr) / (14 * 24 * 3600)) : 1;
+                        var r = Math.round(255 + t * (48 - 255));
+                        var g = Math.round(212 + t * (133 - 212));
+                        var b = Math.round(59  + t * (238 - 59));
+                        return 'rgb(' + r + ',' + g + ',' + b + ')';
                     },
+                    'border-width': function(ele) {
+                        return WALLET_CONFIG[ele.data('id')] ? 3 : 0;
+                    },
+                    'border-color': '#ffa94d',
                     'label': 'data(label)',
                     'width': function(ele) {
                         var bal = ele.data('balance');
                         if (bal > 0) return 25 + 12 * Math.log10(bal);
-                        return 30 + (ele.data('connections') * 5);
+                        return 20;
                     },
                     'height': function(ele) {
                         var bal = ele.data('balance');
                         if (bal > 0) return 25 + 12 * Math.log10(bal);
-                        return 30 + (ele.data('connections') * 5);
+                        return 20;
                     },
                     'font-size': '12px',
                     'color': '#242931',
