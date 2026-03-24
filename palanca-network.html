@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Palanca Token Network Explorer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+    <link rel="stylesheet" href="palanca-network.css">
+</head>
+<body>
+    <h1>Palanca Token Network Explorer</h1>
+    <p class="subtitle">Interactive visualizer for the PAL token network on TON</p>
+
+    <div class="status-bar">
+        <span class="status-text" id="status">Ready. Click "Fetch Live Data" to load from TONAPI, or "Load Demo Data" for a sample graph.</span>
+        <div class="progress-container" id="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="primary" id="fetch-btn">Fetch Live Data</button>
+        <button class="secondary" id="demo-btn">Load Demo Data</button>
+        <button id="save-btn">Save JSON</button>
+        <div class="separator"></div>
+        <button id="cose-layout">Force Layout</button>
+        <button id="circle-layout">Circle Layout</button>
+        <button id="grid-layout">Grid Layout</button>
+        <button id="reset-view">Reset View</button>
+        <div class="separator"></div>
+        <a class="nav-switch" href="index.html">Historical View &rarr;</a>
+    </div>
+
+    <div id="cy"></div>
+
+    <div class="node-info" id="node-info">
+        <h4 id="node-info-label">-</h4>
+        <div class="field"><span class="key">Role: </span><span class="value" id="node-info-role">-</span></div>
+        <div class="field"><span class="key">Balance: </span><span class="value" id="node-info-balance">-</span></div>
+        <div class="field"><span class="key">Connections: </span><span class="value" id="node-info-connections">-</span></div>
+        <div class="field"><span class="key">Address: </span></div>
+        <div class="address" id="node-info-address">-</div>
+    </div>
+
+    <div class="info">
+        <h3>How to use</h3>
+        <p>- Click a node to highlight its neighborhood</p>
+        <p>- Double-click a node to rename it (saved in browser)</p>
+        <p>- Drag nodes to rearrange, scroll to zoom, drag background to pan</p>
+        <p>- Node color: yellow = received PAL recently, blue = two weeks ago or more</p>
+        <p>- Node size: proportional to PAL balance held</p>
+        <p>- Orange border: named/identified wallet</p>
+        <p>- Thicker / orange edges = larger token transfers</p>
+    </div>
+
+    <script src="wallets.js"></script>
+    <script src="palanca-network.js"></script>
+</body>
+</html>
