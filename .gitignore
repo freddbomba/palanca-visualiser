@@ -1,5 +1,4 @@
-# Deployment script — local only, contains your server credentials/paths
-deploy.sh
-# Claude leftovers
 CLAUDE.md
-.claude
+claude.md
+deploy.sh
+V2_ROADMAP.md
