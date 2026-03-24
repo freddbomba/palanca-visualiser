@@ -1,26 +1,26 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Palanca Token Network — Explorer</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
-    <link rel="stylesheet" href="dynemica-visualiser.css">
-    <style>
-        .addr-tag {
-            display: inline-block;
-            font-size: 11px;
-            font-family: monospace;
-            background: #edf2ff;
-            color: #364fc7;
-            border: 1px solid #bac8ff;
-            border-radius: 4px;
-            padding: 1px 6px;
-            user-select: none;
-        }
-        .addr-tag:hover { background: #dbe4ff; }
-    </style>
-</head>
-<body>
+{% extends 'partials/base.html.twig' %}
+
+{% block head %}
+{{ parent() }}
+<link rel="stylesheet" href="/rete/dynemica-visualiser.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+<style>
+    .addr-tag {
+        display: inline-block;
+        font-size: 11px;
+        font-family: monospace;
+        background: #edf2ff;
+        color: #364fc7;
+        border: 1px solid #bac8ff;
+        border-radius: 4px;
+        padding: 1px 6px;
+        user-select: none;
+    }
+    .addr-tag:hover { background: #dbe4ff; }
+</style>
+{% endblock %}
+
+{% block content %}
     <h1>Palanca Token Network — Explorer</h1>
     <div class="status">
         <div>
@@ -48,7 +48,7 @@
     </div>
 
     <div class="controls">
-<button id="cose-layout">Force Layout</button>
+        <button id="cose-layout">Force Layout</button>
         <button id="circle-layout">Circle Layout</button>
         <button id="grid-layout">Grid Layout</button>
         <button id="reset-view">Reset View</button>
@@ -89,7 +89,7 @@
 
     function isCenter(id) { return id in WALLET_CONFIG; }
 
-    const SNAPSHOT_URL = 'latest-snapshot.php';
+    const SNAPSHOT_URL = '/rete/latest-snapshot.php';
     const WALLET_LABELS_URL = 'https://raw.githubusercontent.com/freddbomba/palanca-visualiser/v2/webvisualiser/wallet-labels.json';
 
     // ── State ────────────────────────────────────────────────────────
@@ -98,7 +98,7 @@
 
     // ── DOM refs ─────────────────────────────────────────────────────
     const $ = id => document.getElementById(id);
-    const statusEl     = $('status-text');
+    const statusEl      = $('status-text');
     const nodeInfoPanel = $('node-info');
 
     // ── Helpers ──────────────────────────────────────────────────────
@@ -123,8 +123,6 @@
         return crc;
     }
 
-    // Returns the full friendly address string (48 chars, base64url).
-    // bounceable=true → EQ..., bounceable=false → UQ...
     function rawToFriendly(raw, bounceable) {
         var parts = (raw || '').split(':');
         if (parts.length !== 2 || parts[1].length !== 64) return null;
@@ -147,7 +145,6 @@
         return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     }
 
-    // Short tag form: "UQxx…xxxx" (first 4 + … + last 4 of the base64url part)
     function friendlyShort(raw, bounceable) {
         var full = rawToFriendly(raw, bounceable);
         if (!full) return null;
@@ -235,7 +232,7 @@
 
     // ── Remote wallet labels ──────────────────────────────────────────
     async function fetchWalletLabels() {
-        const urls = [WALLET_LABELS_URL, 'wallet-labels.json'];
+        const urls = [WALLET_LABELS_URL, '/rete/wallet-labels.json'];
         for (const url of urls) {
             try {
                 const resp = await fetch(url);
@@ -257,8 +254,6 @@
     }
 
     // ── Snapshot loader ───────────────────────────────────────────────
-    // Snapshot format (from Save JSON): flat node/edge objects without data wrapper.
-    // Cytoscape expects { data: { ... } } wrappers.
     async function loadSnapshot() {
         const resp = await fetch(SNAPSHOT_URL);
         if (!resp.ok) throw new Error('HTTP ' + resp.status + ' loading ' + SNAPSHOT_URL);
@@ -283,7 +278,7 @@
         setupCytoscapeEvents();
         var msg = cy.nodes().length + ' wallets, ' + cy.edges().length + ' transfers';
         if (data.exportedAt) {
-            msg += ' — snapshot ' + new Date(data.exportedAt).toLocaleDateString();
+            msg += ' \u2014 snapshot ' + new Date(data.exportedAt).toLocaleDateString();
         }
         setStatus(msg);
     }
@@ -404,12 +399,11 @@
         { selector: 'edge.dimmed', style: { 'opacity': 0.05 } }
     ];
 
-function applyLayout(name) {
+    function applyLayout(name) {
         if (!cy) return;
         cy.layout({ name: name, animate: true, animationDuration: 1000, padding: 50 }).run();
     }
 
-    // ── Copy full address on click ────────────────────────────────────
     function setupAddressCopy() {
         $('node-info-address').addEventListener('click', function() {
             var full = this.title;
@@ -469,5 +463,4 @@ function applyLayout(name) {
         $('reset-view').addEventListener('click',    function() { if (cy) cy.fit(); });
     });
     </script>
-</body>
-</html>
+{% endblock %}

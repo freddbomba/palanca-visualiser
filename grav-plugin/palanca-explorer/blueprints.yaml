@@ -1,0 +1,54 @@
+name: Palanca Explorer
+version: 1.0.0
+description: Save-snapshot endpoint for the Palanca network explorer
+icon: share-alt
+author:
+  name: Palanca
+homepage: https://github.com/freddbomba/palanca-visualiser
+keywords: palanca, ton, network
+bugs: https://github.com/freddbomba/palanca-visualiser/issues
+license: MIT
+
+form:
+  validation: strict
+  fields:
+    enabled:
+      type: toggle
+      label: Plugin Status
+      highlight: 1
+      default: 0
+      options:
+        1: Enabled
+        0: Disabled
+      validate:
+        type: bool
+
+    snapshot_path:
+      type: text
+      label: Snapshot file path
+      help: "Path to snapshot.json — relative to Grav root, or absolute."
+      default: 'rete/snapshot.json'
+
+    min_write_interval:
+      type: text
+      label: Min write interval (seconds)
+      help: "Minimum seconds between saves — rate limiting."
+      default: 60
+      validate:
+        type: int
+        min: 10
+
+    max_payload_bytes:
+      type: text
+      label: Max payload size (bytes)
+      help: "Maximum POST body size accepted."
+      default: 512000
+      validate:
+        type: int
+        min: 1024
+
+    required_access:
+      type: text
+      label: Required Grav access key
+      help: "Grav access permission required (e.g. site.login)."
+      default: 'site.login'

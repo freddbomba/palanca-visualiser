@@ -1,0 +1,15 @@
+enabled: true
+
+# Path to snapshot.json — relative to Grav root, or absolute.
+# Default puts it at <grav-root>/rete/snapshot.json, served as a static file by nginx.
+snapshot_path: 'rete/snapshot.json'
+
+# Minimum seconds between saves (rate limiting).
+min_write_interval: 60
+
+# Maximum POST body size accepted (bytes). 500 KB is generous for any realistic graph.
+max_payload_bytes: 512000
+
+# Grav access key required to save snapshots.
+# 'site.login' means any logged-in user. Tighten to a custom key if needed.
+required_access: 'site.login'
