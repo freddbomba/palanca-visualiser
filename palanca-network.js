@@ -383,9 +383,12 @@ function renderGraph(data) {
         ],
         layout: {
             name: 'cose',
-            padding: 50,
+            padding: 80,
             animate: true,
-            animationDuration: 1000
+            animationDuration: 1000,
+            nodeRepulsion: 8192,
+            idealEdgeLength: 120,
+            gravity: 0.4
         }
     });
 
@@ -547,7 +550,7 @@ function saveJSON() {
 // ── Layout helpers ───────────────────────────────────────────────
 function applyLayout(name) {
     if (!cy) return;
-    cy.layout({ name: name, animate: true, animationDuration: 1000, padding: 50 }).run();
+    cy.layout({ name: name, animate: true, animationDuration: 1000, padding: 80, nodeRepulsion: 8192, idealEdgeLength: 120, gravity: 0.4 }).run();
 }
 
 // ── Init ─────────────────────────────────────────────────────────
