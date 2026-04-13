@@ -15,6 +15,7 @@ const WALLET_CONFIG = {
     '0:dc459676f15a4c0a6b31b82e5a20cc076e2fd5279229dfe4809a880f60de15ca': { label: 'Bottega Ciacchi', color: '#FF5533' },
     '0:cc28363d831a5c45123a376a9e169e6ce644441c72901f6a4224db653dda0fad': { label: 'Per Pré', color: '#ffff00' },
     '0:17f006e0de688279096a5857a5641c7033831b3bcc581920fa8a252c9e120057': { label: 'Libreria', color: '#FF5544' },
+    '0:b4163c4c10583b2c721e4429cb928d6f4051678c67c312bed60f18ed78013253': { label: 'Ogigia', color: '#f76707' },
     // Demo-mode node IDs (used in Load Demo Data)
     'distributor': { label: 'Main Distributor', color: '#e03131' },
     'walletA':     { label: 'Wallet A',         color: '#1971c2' },
