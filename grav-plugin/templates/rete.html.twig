@@ -25,7 +25,7 @@
     <h1>Palanca Token Network - Dynamic Visualiser</h1>
     <div class="status">
         <div>
-            <span id="status-text">Ready. Click "Fetch Live Data" or "Load Demo Data".</span>
+            <span id="status-text">Loading snapshot…</span>
         </div>
     </div>
     <div class="progress-container" id="progress-container">
@@ -60,7 +60,6 @@
 
     <div class="controls">
         <button class="primary" id="fetch-btn">Fetch Live Data</button>
-        <button class="secondary" id="demo-btn">Load Demo Data</button>
         <button id="settings-btn">Settings</button>
         <button id="save-btn">Save JSON</button>
         <button id="snapshot-btn">Save Snapshot</button>
@@ -611,7 +610,6 @@
 
         try {
             $('fetch-btn').disabled = true;
-            $('demo-btn').disabled = true;
             setProgress(0);
             setStatus('Fetching holders\u2026');
 
@@ -654,7 +652,6 @@
         } finally {
             setProgress(-1);
             $('fetch-btn').disabled = false;
-            $('demo-btn').disabled = false;
             fetchAbort = null;
         }
     }
@@ -716,6 +713,20 @@
         cy.layout({ name: name, animate: true, animationDuration: 1000, padding: 50 }).run();
     }
 
+    // ── Snapshot loader ───────────────────────────────────────────────
+    async function loadSnapshot() {
+        var url = '/rete/latest-snapshot.php';
+        var resp = await fetch(url);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status + ' loading snapshot');
+        var snapshot = await resp.json();
+        if (!snapshot.nodes || !snapshot.edges) throw new Error('Invalid snapshot format');
+        return {
+            nodes: snapshot.nodes.map(function(n) { return { data: n }; }),
+            edges: snapshot.edges.map(function(e) { return { data: e }; }),
+            exportedAt: snapshot.exportedAt || null
+        };
+    }
+
     // ── Init ─────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', async function() {
         jettonInput.value = DEFAULT_JETTON;
@@ -731,12 +742,27 @@
                 setStatus('Cached data from ' + when + ': ' + cy.nodes().length + ' wallets, ' + cy.edges().length + ' transfers');
             } else {
                 localStorage.removeItem(CACHE_KEY);
-                setStatus('Stale cache cleared. Click "Fetch Live Data" to reload.');
+                setStatus('Stale cache cleared. Loading snapshot…');
+                try {
+                    var snap = await loadSnapshot();
+                    renderGraphStatic(snap);
+                    var msg = cy.nodes().length + ' wallets, ' + cy.edges().length + ' transfers';
+                    if (snap.exportedAt) msg += ' — snapshot ' + new Date(snap.exportedAt).toLocaleDateString();
+                    setStatus(msg);
+                } catch(e) { setStatus('Snapshot error: ' + e.message); }
             }
+        } else {
+            setStatus('Loading snapshot…');
+            try {
+                var snap = await loadSnapshot();
+                renderGraphStatic(snap);
+                var msg = cy.nodes().length + ' wallets, ' + cy.edges().length + ' transfers';
+                if (snap.exportedAt) msg += ' — snapshot ' + new Date(snap.exportedAt).toLocaleDateString();
+                setStatus(msg);
+            } catch(e) { setStatus('Snapshot error: ' + e.message); }
         }
 
         $('fetch-btn').addEventListener('click', fetchAndRender);
-        $('demo-btn').addEventListener('click', loadDemoData);
         $('save-btn').addEventListener('click', saveJSON);
         $('snapshot-btn').addEventListener('click', saveSnapshot);
 
