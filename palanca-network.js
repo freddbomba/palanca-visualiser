@@ -65,6 +65,38 @@ function truncateAddress(addr) {
     return addr.slice(0, 6) + '\u2026' + addr.slice(-4);
 }
 
+function crc16(data) {
+    var crc = 0xFFFF;
+    for (var i = 0; i < data.length; i++) {
+        crc ^= data[i] << 8;
+        for (var j = 0; j < 8; j++) {
+            crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+            crc &= 0xFFFF;
+        }
+    }
+    return crc;
+}
+function rawToFriendly(raw, bounceable) {
+    var parts = (raw || '').split(':');
+    if (parts.length !== 2 || parts[1].length !== 64) return null;
+    var workchain = parseInt(parts[0], 10);
+    var addrBytes = new Uint8Array(32);
+    for (var i = 0; i < 32; i++) {
+        addrBytes[i] = parseInt(parts[1].slice(i * 2, i * 2 + 2), 16);
+    }
+    var payload = new Uint8Array(34);
+    payload[0] = bounceable ? 0x11 : 0x51;
+    payload[1] = workchain & 0xff;
+    payload.set(addrBytes, 2);
+    var crc = crc16(payload);
+    var buf = new Uint8Array(36);
+    buf.set(payload);
+    buf[34] = (crc >> 8) & 0xff;
+    buf[35] = crc & 0xff;
+    var bin = '';
+    for (var i = 0; i < 36; i++) bin += String.fromCharCode(buf[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
 function getLabel(address) {
     const cfg = WALLET_CONFIG[address];
     if (cfg && cfg.label) return cfg.label;
@@ -270,6 +302,8 @@ function renderGraph(data) {
                 selector: 'node',
                 style: {
                     'background-color': function(ele) {
+                        var cfg = WALLET_CONFIG[ele.data('id')];
+                        if (cfg && cfg.color) return cfg.color;
                         // Yellow (#ffd43b = 255,212,59) → Blue (#3085EE = 48,133,238)
                         // t=0 recent, t=1 two weeks or more ago / never
                         var lr = ele.data('lastReceived');
@@ -282,7 +316,10 @@ function renderGraph(data) {
                     'border-width': function(ele) {
                         return WALLET_CONFIG[ele.data('id')] ? 3 : 0;
                     },
-                    'border-color': '#ffa94d',
+                    'border-color': function(ele) {
+                        var cfg = WALLET_CONFIG[ele.data('id')];
+                        return (cfg && cfg.color) ? cfg.color : '#ffa94d';
+                    },
                     'label': 'data(label)',
                     'width': function(ele) {
                         var bal = ele.data('balance');
@@ -365,7 +402,39 @@ function renderGraph(data) {
         $('node-info-role').textContent = node.data('role');
         $('node-info-balance').textContent = node.data('balance') ? node.data('balance').toLocaleString() + ' PAL' : '-';
         $('node-info-connections').textContent = node.data('connections');
-        $('node-info-address').textContent = node.data('id');
+        var fullAddr = node.data('id');
+        var addrEl = $('node-info-address');
+        addrEl.textContent = truncateAddress(fullAddr);
+        addrEl.title = fullAddr;
+        addrEl.style.cursor = 'pointer';
+        addrEl.onclick = function() {
+            navigator.clipboard.writeText(fullAddr).then(function() {
+                var prev = addrEl.textContent;
+                addrEl.textContent = 'Copiato!';
+                setTimeout(function() { addrEl.textContent = prev; }, 1500);
+            });
+        };
+        var friendlyEl = $('node-info-friendly');
+        var eq = rawToFriendly(fullAddr, true);
+        var uq = rawToFriendly(fullAddr, false);
+        if (eq && friendlyEl) {
+            friendlyEl.innerHTML =
+                '<span class="addr-tag" title="' + eq + '" style="cursor:pointer;margin-right:6px" data-full="' + eq + '">EQ…' + eq.slice(-6) + '</span>' +
+                '<span class="addr-tag" title="' + uq + '" style="cursor:pointer" data-full="' + uq + '">UQ…' + uq.slice(-6) + '</span>';
+            friendlyEl.style.display = 'block';
+            friendlyEl.querySelectorAll('.addr-tag').forEach(function(tag) {
+                tag.addEventListener('click', function() {
+                    var full = this.dataset.full;
+                    navigator.clipboard.writeText(full).then(function() {
+                        var prev = tag.textContent;
+                        tag.textContent = 'Copiato!';
+                        setTimeout(function() { tag.textContent = prev; }, 1500);
+                    });
+                });
+            });
+        } else if (friendlyEl) {
+            friendlyEl.style.display = 'none';
+        }
         nodeInfoPanel.classList.add('visible');
     });
 
