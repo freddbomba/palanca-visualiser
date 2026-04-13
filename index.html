@@ -139,6 +139,8 @@
         <button id="grid-layout">Grid Layout</button>
         <button id="reset-view">Reset View</button>
         <div class="separator"></div>
+        <button id="snapshot-btn">Save Snapshot</button>
+        <div class="separator"></div>
         <a class="nav-switch" href="palanca-network.html">&larr; Network Explorer</a>
     </div>
 
@@ -166,5 +168,45 @@
 
     <script src="wallets.js"></script>
     <script src="historical-visualiser.js"></script>
+    <script>
+    async function saveSnapshot() {
+        if (!cy) { document.getElementById('status-text').textContent = 'No graph data to save.'; return; }
+        var data = {
+            nodes: cy.nodes().map(function(n) { return n.data(); }),
+            edges: cy.edges().map(function(e) { return e.data(); }),
+            exportedAt: new Date().toISOString()
+        };
+        var btn = document.getElementById('snapshot-btn');
+        var statusEl = document.getElementById('status-text');
+        try {
+            btn.disabled = true;
+            statusEl.textContent = 'Saving snapshot\u2026';
+            var resp = await fetch('/rete/save-snapshot', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(data)
+            });
+            var result = await resp.json().catch(function() { return {}; });
+            if (resp.ok) {
+                statusEl.textContent = 'Snapshot saved: ' + result.nodes + ' nodes, ' + result.edges + ' edges (' + result.savedAt + ')';
+            } else if (resp.status === 429) {
+                statusEl.textContent = 'Rate limited \u2014 ' + (result.error || 'try again shortly');
+            } else {
+                statusEl.textContent = 'Snapshot error: ' + (result.error || 'HTTP ' + resp.status);
+            }
+        } catch (e) {
+            statusEl.textContent = 'Snapshot failed: ' + e.message;
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('snapshot-btn').addEventListener('click', saveSnapshot);
+    });
+    </script>
 </body>
 </html>

@@ -41,7 +41,7 @@ const DEMO_DATA = {
 };
 
 // ── State ────────────────────────────────────────────────────────
-let cy = null;
+var cy = null;  // var so saveSnapshot() in index.html can read window.cy
 let fetchAbort = null;
 
 // ── DOM refs ─────────────────────────────────────────────────────
