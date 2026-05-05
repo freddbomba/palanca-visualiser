@@ -66,7 +66,7 @@ function truncateAddress(addr) {
 }
 
 function crc16(data) {
-    var crc = 0xFFFF;
+    var crc = 0x0000;
     for (var i = 0; i < data.length; i++) {
         crc ^= data[i] << 8;
         for (var j = 0; j < 8; j++) {
