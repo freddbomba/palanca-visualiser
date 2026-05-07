@@ -674,6 +674,16 @@
         setStatus('Saved JSON (' + data.nodes.length + ' nodes, ' + data.edges.length + ' edges)');
     }
 
+    function downloadSnapshot(data) {
+        var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'palanca-network-' + new Date().toISOString().slice(0, 10) + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
     async function saveSnapshot() {
         if (!cy) { setStatus('No graph data to save.'); return; }
         var data = {
@@ -681,11 +691,13 @@
             edges: cy.edges().map(function(e) { return e.data(); }),
             exportedAt: new Date().toISOString()
         };
+        $('snapshot-btn').disabled = true;
+        downloadSnapshot(data);
         try {
-            $('snapshot-btn').disabled = true;
             setStatus('Saving snapshot\u2026');
             var resp = await fetch('/rete/save-snapshot', {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
@@ -694,14 +706,14 @@
             });
             var result = await resp.json().catch(function() { return {}; });
             if (resp.ok) {
-                setStatus('Snapshot saved: ' + result.nodes + ' nodes, ' + result.edges + ' edges (' + result.savedAt + ')');
+                setStatus('Snapshot salvato sul server: ' + result.nodes + ' nodi, ' + result.edges + ' archi (' + result.savedAt + ') \u2014 file scaricato localmente');
             } else if (resp.status === 429) {
-                setStatus('Rate limited \u2014 ' + (result.error || 'try again shortly'));
+                setStatus('Rate limited \u2014 ' + (result.error || 'riprova tra poco') + ' (file scaricato localmente)');
             } else {
-                setStatus('Snapshot error: ' + (result.error || 'HTTP ' + resp.status));
+                setStatus('Server non raggiunto (' + (result.error || 'HTTP ' + resp.status) + ') \u2014 file scaricato localmente');
             }
         } catch (e) {
-            setStatus('Snapshot failed: ' + e.message);
+            setStatus('Errore server: ' + e.message + ' \u2014 file scaricato localmente');
         } finally {
             $('snapshot-btn').disabled = false;
         }
