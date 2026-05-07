@@ -183,6 +183,7 @@
             statusEl.textContent = 'Saving snapshot\u2026';
             var resp = await fetch('/rete/save-snapshot', {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
