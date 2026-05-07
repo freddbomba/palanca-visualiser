@@ -65,19 +65,11 @@ class PalancaExplorerPlugin extends Plugin
             $this->sendJson(['error' => 'Forbidden'], 403);
         }
 
-        // 2. Grav session authentication.
-        /** @var \Grav\Common\User\Interfaces\UserInterface $user */
-        $user = $this->grav['user'];
-        if (!$user || !$user->authenticated) {
+        // 2. Token authentication.
+        $configuredToken = (string) $this->config->get('plugins.palanca-explorer.save_token', '');
+        $sentToken       = (string) ($_SERVER['HTTP_X_SNAPSHOT_TOKEN'] ?? '');
+        if ($configuredToken === '' || !hash_equals($configuredToken, $sentToken)) {
             $this->sendJson(['error' => 'Not authenticated'], 401);
-        }
-
-        $requiredAccess = $this->config->get(
-            'plugins.palanca-explorer.required_access',
-            'site.login'
-        );
-        if (!$user->authorize($requiredAccess)) {
-            $this->sendJson(['error' => 'Forbidden'], 403);
         }
 
         // 3. Payload size check (Content-Length header, then actual body).

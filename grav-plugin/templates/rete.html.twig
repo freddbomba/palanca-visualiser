@@ -96,6 +96,7 @@
 
     <script>
     // ── Config ───────────────────────────────────────────────────────
+    const SNAPSHOT_TOKEN = '{{ grav.config.get("plugins.palanca-explorer.save_token")|e("js") }}';
     function isCenter(id) { return id in WALLET_CONFIG; }
 
     const TONAPI_BASE = 'https://tonapi.io';
@@ -697,10 +698,10 @@
             setStatus('Saving snapshot\u2026');
             var resp = await fetch('/rete/save-snapshot', {
                 method: 'POST',
-                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-Snapshot-Token': SNAPSHOT_TOKEN
                 },
                 body: JSON.stringify(data)
             });

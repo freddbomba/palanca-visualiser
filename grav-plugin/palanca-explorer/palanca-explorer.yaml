@@ -10,6 +10,7 @@ min_write_interval: 60
 # Maximum POST body size accepted (bytes). 500 KB is generous for any realistic graph.
 max_payload_bytes: 512000
 
-# Grav access key required to save snapshots.
-# 'site.login' means any logged-in user. Tighten to a custom key if needed.
-required_access: 'site.login'
+# Secret token required to save snapshots.
+# Change this to a strong random string and keep it private.
+# The twig template passes it to the JS fetch call (server-rendered, not public).
+save_token: '87f6f1d94cb27b2a3d1b381289bc833799a04a063addb0e9'
